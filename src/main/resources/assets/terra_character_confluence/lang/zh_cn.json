@@ -1,0 +1,10 @@
+{
+  "terra_character_confluence.options": "汇流世界选项",
+  "terra_character_confluence.difficulty.classic": "经典",
+  "terra_character_confluence.difficulty.expert": "专家",
+  "terra_character_confluence.difficulty.master": "大师",
+  "terra_character_confluence.evil.random": "邪恶类型：随机",
+  "terra_character_confluence.evil.corruption": "邪恶类型：腐化",
+  "terra_character_confluence.evil.crimson": "邪恶类型：猩红",
+  "terra_character_confluence.seed.help": "特殊种子使用原版创建界面的种子输入框；传奇由种子派生。"
+}

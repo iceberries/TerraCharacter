@@ -1,0 +1,30 @@
+# Build outputs and IDE state
+.gradle/
+build/
+out/
+bin/
+.idea/
+.vscode/
+*.iml
+.classpath
+.project
+.settings/
+
+# Local games, account skin caches, saves and diagnostics
+run/
+run-data/
+logs/
+screenshots/
+*.log
+*.hprof
+*.jfr
+*.nphd
+*.ref
+*.map
+__pycache__/
+
+# Local credentials and machine-specific configuration
+.env
+.env.*
+!.env.example
+local.properties

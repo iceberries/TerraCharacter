@@ -1,0 +1,27 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "org.confluence.terra_character.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "PlayerListMixin",
+    "PlayerDeathMixin",
+    "RespawnMixin",
+    "RespawnPacketMixin",
+    "ServerLifecycleMixin",
+    "ConfigurationDisconnectMixin"
+  ],
+  "client": [
+    "client.IntegratedPlayerListMixin",
+    "client.CreateWorldMixin",
+    "client.PlayerSkinMixin",
+    "client.WorldOpenMixin",
+    "client.LanMixin",
+    "client.HeartMixin",
+    "client.MultiplayerLeaveMixin",
+    "client.ClientStopMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

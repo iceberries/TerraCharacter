@@ -1,0 +1,10 @@
+{
+  "terra_character_confluence.options": "Confluence World Options",
+  "terra_character_confluence.difficulty.classic": "Classic",
+  "terra_character_confluence.difficulty.expert": "Expert",
+  "terra_character_confluence.difficulty.master": "Master",
+  "terra_character_confluence.evil.random": "Evil: Random",
+  "terra_character_confluence.evil.corruption": "Evil: Corruption",
+  "terra_character_confluence.evil.crimson": "Evil: Crimson",
+  "terra_character_confluence.seed.help": "Enter special seeds in the native seed field. Legendary is derived from seed rules."
+}

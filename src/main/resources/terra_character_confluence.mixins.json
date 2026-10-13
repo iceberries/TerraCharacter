@@ -1,0 +1,10 @@
+{
+  "required": true,
+  "plugin": "org.confluence.terra_character.integration.ConfluenceMixinPlugin",
+  "minVersion": "0.8",
+  "package": "org.confluence.terra_character_confluence.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": ["PlayerUtilsMixin", "SoftcorePacketMixin", "DifficultyMixin", "QuestResetMixin", "ManaMixin"],
+  "client": ["client.HealthHudMixin"],
+  "injectors": {"defaultRequire": 1}
+}

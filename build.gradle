@@ -1,0 +1,114 @@
+plugins {
+	id 'java-library'
+	id 'net.neoforged.moddev'
+}
+
+version = mod_version + '+' + minecraft_version
+group = mod_group_id
+base.archivesName = 'TerraCharacter-neoforge'
+java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+java.withSourcesJar()
+
+// Compile the built-in compatibility against Confluence, without making it a runtime dependency.
+def withConfluence = providers.gradleProperty('withConfluence').orNull == 'true'
+
+sourceSets {
+	smokeTest {
+		compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+		// Do not leak compileOnly compatibility dependencies into standalone smoke runs.
+		runtimeClasspath += sourceSets.main.output + sourceSets.main.runtimeClasspath
+	}
+}
+
+sourceSets.test.compileClasspath += sourceSets.main.compileClasspath
+sourceSets.test.runtimeClasspath += sourceSets.main.runtimeClasspath
+
+neoForge {
+	version = project.neo_version
+	parchment {
+		mappingsVersion = project.parchment_mappings_version
+		minecraftVersion = project.parchment_minecraft_version
+	}
+	mods {
+		if (withConfluence) {
+			confluence { sourceSet(rootProject.project(':ConfluenceOtherworld').sourceSets.main) }
+		}
+		"${mod_id}" {
+			sourceSet(sourceSets.main)
+			if (providers.gradleProperty('accountSkinSmoke').orNull == 'true' || providers.gradleProperty('integrationSmoke').orNull == 'true' || providers.gradleProperty('menuSmoke').orNull == 'true' || providers.gradleProperty('characterSmoke').orNull == 'true' || providers.gradleProperty('skinSmoke').orNull == 'true' || providers.gradleProperty('multiplayerSmoke').orNull == 'true') sourceSet(sourceSets.smokeTest)
+		}
+	}
+	runs {
+		client {
+			client()
+			if (withConfluence) gameDirectory = rootProject.project(':ConfluenceOtherworld').file('run')
+			if (providers.gradleProperty('integrationSmoke').orNull == 'true') {
+				gameDirectory = layout.buildDirectory.dir('integration-smoke-run').get().asFile
+				systemProperty 'terra_character.integration_smoke', 'true'
+			}
+			if (providers.gradleProperty('accountSkinSmoke').orNull == 'true') {
+				gameDirectory = layout.buildDirectory.dir('account-skin-smoke-run').get().asFile
+				systemProperty 'terra_character.account_skin_smoke', 'true'
+			}
+			if (providers.gradleProperty('menuSmoke').orNull == 'true') {
+				gameDirectory = layout.buildDirectory.dir('menu-smoke-run').get().asFile
+				systemProperty 'terra_character.menu_smoke', 'true'
+			}
+			programArguments.addAll '--username', 'Confluence'
+			if (providers.gradleProperty('characterSmoke').orNull == 'true') {
+				gameDirectory = layout.buildDirectory.dir('smoke-run').get().asFile
+				systemProperty 'terra_character.smoke', 'true'
+			}
+			if (providers.gradleProperty('multiplayerSmoke').orNull == 'true') {
+				gameDirectory = layout.buildDirectory.dir('multiplayer-smoke-host').get().asFile
+				systemProperty 'terra_character.mp_smoke', 'host'
+				systemProperty 'terra_character.mp_launch', layout.buildDirectory.dir('moddev').get().asFile.absolutePath
+			}
+			if (providers.gradleProperty('skinSmoke').orNull == 'true') {
+				gameDirectory = layout.buildDirectory.dir('skin-smoke-run').get().asFile
+				systemProperty 'terra_character.skin_smoke', 'true'
+			}
+		}
+		server { server() }
+	}
+}
+
+repositories {
+	mavenCentral()
+	project(':ConfluenceOtherworld').repositories.each { add(it) }
+}
+
+dependencies {
+	compileOnly project(':ConfluenceOtherworld')
+	compileOnly project(':Confluence-Magic-Lib')
+	compileOnly project(':TerraCurio')
+	compileOnly "top.theillusivec4.curios:curios-neoforge:${curios_version}"
+	if (withConfluence) {
+		runtimeOnly project(':ConfluenceOtherworld')
+		runtimeOnly project(':Confluence-Magic-Lib')
+		runtimeOnly project(':TerraCurio')
+		runtimeOnly project(':TerraFurniture')
+		runtimeOnly "top.theillusivec4.curios:curios-neoforge:${curios_version}"
+	}
+	testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.10.2'
+}
+
+tasks.withType(JavaCompile).configureEach {
+	options.encoding = 'UTF-8'
+	options.compilerArgs.add('-Xlint:static,rawtypes,unchecked,fallthrough')
+}
+tasks.named('test', Test) {
+	useJUnitPlatform()
+	def testTemp = layout.buildDirectory.dir('test-tmp')
+	systemProperty 'java.io.tmpdir', testTemp.get().asFile.absolutePath
+	doFirst { testTemp.get().asFile.mkdirs() }
+}
+tasks.named('processResources', ProcessResources) {
+	def properties = [mod_id: mod_id, mod_name: mod_name, mod_version: project.version,
+					  mod_license: mod_license, loader_version_range: loader_version_range,
+					  minecraft_version_range: minecraft_version_range, neo_version: neo_version,
+					  confluence_version: project(':ConfluenceOtherworld').mod_version]
+	inputs.properties properties
+	filesMatching('META-INF/neoforge.mods.toml') { expand properties }
+}
