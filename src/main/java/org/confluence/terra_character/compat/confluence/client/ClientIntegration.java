@@ -1,4 +1,4 @@
-package org.confluence.terra_character_confluence.client;
+package org.confluence.terra_character.compat.confluence.client;
 
 import net.minecraft.client.gui.screens.worldselection.CreateWorldScreen;
 import net.minecraft.world.Difficulty;
@@ -6,7 +6,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.client.event.ScreenEvent;
 
 import org.confluence.terra_character.client.*;
-import org.confluence.terra_character_confluence.world.ConfluenceWorldOptions;
+import org.confluence.terra_character.compat.confluence.world.ConfluenceWorldOptions;
 
 import java.util.Collections;
 import java.util.Set;

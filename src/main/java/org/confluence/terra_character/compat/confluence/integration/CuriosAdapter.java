@@ -1,4 +1,4 @@
-package org.confluence.terra_character_confluence.integration;
+package org.confluence.terra_character.compat.confluence.integration;
 
 import net.minecraft.nbt.*;
 import net.minecraft.resources.ResourceLocation;

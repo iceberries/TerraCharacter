@@ -4,6 +4,8 @@
 
 保留魔力、永久增益、扩展背包、饰品、猪猪储蓄罐、保险箱与渔夫任务的归属适配；世界选项、特殊种子、难度、掉钱、复活与生命 HUD 的兼容接点保持不变。八个适配器和世界选项仍使用 `terra_character_confluence:*` 数据标识，已有存档无需重写。此命名空间不再表示一个独立安装的模组。
 
+兼容代码的 Java 包为 `org.confluence.terra_character.compat.confluence`，其下包含 `client`、`integration`、`world` 和 `mixin`。Java 包名与持久化命名空间分离：旧适配器 ID、世界选项键、资源翻译键及旧兼容模组的冲突检查均保持原样。反射启动入口和 Mixin 配置指向新包，旧包不再包含实现类。
+
 兼容入口在检测到 `confluence` 后才通过延迟加载调用。兼容类不再使用自动事件订阅注解；公共监听器由入口注册，客户端监听器和预览能力仅在物理客户端注册。Mixin 配置使用独立插件，在模组发现阶段依据 Confluence 的存在决定是否应用，缺少汇流时不解析其目标类。
 
 运行依赖仍仅必需 Minecraft／NeoForge；构建时以 `compileOnly` 引用汇流及其前置，发行 JAR 不嵌入前置类或 JAR。Gradle 子项目 TerraCharacterConfluence 已移除，源码、资源和单元测试均位于 TerraCharacter 中。

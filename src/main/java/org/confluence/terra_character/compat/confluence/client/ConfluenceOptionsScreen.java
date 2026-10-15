@@ -1,4 +1,4 @@
-package org.confluence.terra_character_confluence.client;
+package org.confluence.terra_character.compat.confluence.client;
 
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
@@ -7,7 +7,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.Difficulty;
 
 import org.confluence.terra_character.client.*;
-import org.confluence.terra_character_confluence.world.ConfluenceWorldOptions;
+import org.confluence.terra_character.compat.confluence.world.ConfluenceWorldOptions;
 
 import java.util.Locale;
 

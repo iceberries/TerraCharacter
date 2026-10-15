@@ -1,4 +1,4 @@
-package org.confluence.terra_character_confluence.client;
+package org.confluence.terra_character.compat.confluence.client;
 
 import net.minecraft.world.entity.EntityType;
 import net.neoforged.bus.api.SubscribeEvent;

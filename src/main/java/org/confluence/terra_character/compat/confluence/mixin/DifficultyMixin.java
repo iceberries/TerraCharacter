@@ -1,12 +1,12 @@
-package org.confluence.terra_character_confluence.mixin;
+package org.confluence.terra_character.compat.confluence.mixin;
 
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 
 import net.minecraft.world.DifficultyInstance;
 
 import org.confluence.mod.common.init.ModSecretSeeds;
-import org.confluence.terra_character_confluence.world.ConfluenceWorldOptions;
-import org.confluence.terra_character_confluence.world.WorldEvents;
+import org.confluence.terra_character.compat.confluence.world.ConfluenceWorldOptions;
+import org.confluence.terra_character.compat.confluence.world.WorldEvents;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 

@@ -1,4 +1,4 @@
-package org.confluence.terra_character_confluence.mixin;
+package org.confluence.terra_character.compat.confluence.mixin;
 
 import org.confluence.mod.common.attachment.ManaStorage;
 import org.spongepowered.asm.mixin.*;

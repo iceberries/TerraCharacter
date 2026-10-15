@@ -1,4 +1,4 @@
-package org.confluence.terra_character_confluence.world;
+package org.confluence.terra_character.compat.confluence.world;
 
 import net.minecraft.world.Difficulty;
 import net.minecraft.world.entity.player.Player;

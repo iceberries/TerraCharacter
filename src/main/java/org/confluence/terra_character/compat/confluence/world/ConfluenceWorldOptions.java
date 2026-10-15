@@ -1,4 +1,4 @@
-package org.confluence.terra_character_confluence.world;
+package org.confluence.terra_character.compat.confluence.world;
 
 import org.confluence.terra_character.api.model.WorldSettings;
 

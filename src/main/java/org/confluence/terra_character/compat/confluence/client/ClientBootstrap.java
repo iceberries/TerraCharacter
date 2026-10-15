@@ -1,4 +1,4 @@
-package org.confluence.terra_character_confluence.client;
+package org.confluence.terra_character.compat.confluence.client;
 
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.common.NeoForge;

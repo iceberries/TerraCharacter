@@ -1,4 +1,4 @@
-package org.confluence.terra_character_confluence.mixin;
+package org.confluence.terra_character.compat.confluence.mixin;
 
 import net.minecraft.server.level.ServerPlayer;
 

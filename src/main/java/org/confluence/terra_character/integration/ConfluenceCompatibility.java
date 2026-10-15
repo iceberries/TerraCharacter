@@ -16,7 +16,7 @@ public final class ConfluenceCompatibility {
 			return;
 		}
 		try {
-			Class.forName("org.confluence.terra_character_confluence.TerraCharacterConfluence")
+			Class.forName("org.confluence.terra_character.compat.confluence.TerraCharacterConfluence")
 					.getMethod("initialize", IEventBus.class)
 					.invoke(null, bus);
 			TerraCharacter.LOGGER.info("Built-in Confluence character integration activated");

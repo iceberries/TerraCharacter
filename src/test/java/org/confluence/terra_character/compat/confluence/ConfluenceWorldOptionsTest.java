@@ -1,15 +1,50 @@
-package org.confluence.terra_character_confluence;
+package org.confluence.terra_character.compat.confluence;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 import org.confluence.terra_character.api.model.WorldDifficulty;
+import org.confluence.terra_character.api.model.WorldProfile;
 import org.confluence.terra_character.api.model.WorldSettings;
-import org.confluence.terra_character_confluence.world.ConfluenceWorldOptions;
+import org.confluence.terra_character.compat.confluence.world.ConfluenceWorldOptions;
+import org.confluence.terra_character.storage.WorldStore;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.nio.file.Path;
 import java.util.Map;
+import java.util.UUID;
 
 class ConfluenceWorldOptionsTest {
+	@Test
+	void legacyWorldKeysRemainReadableAfterPackageMigration(@TempDir Path directory)
+			throws Exception {
+		assertEquals(
+				"terra_character_confluence:world_difficulty",
+				ConfluenceWorldOptions.DIFFICULTY_KEY);
+		assertEquals("terra_character_confluence:evil", ConfluenceWorldOptions.EVIL_KEY);
+		var legacy =
+				new WorldProfile(
+						UUID.randomUUID(),
+						"Legacy world",
+						new WorldSettings(
+								"123",
+								"minecraft:normal",
+								WorldDifficulty.HARD,
+								Map.of(
+										"terra_character_confluence:world_difficulty",
+										"master",
+										"terra_character_confluence:evil",
+										"crimson")));
+		WorldStore.write(directory, legacy);
+		var loaded = WorldStore.read(directory).orElseThrow();
+		assertEquals(legacy, loaded);
+		assertEquals(
+				new ConfluenceWorldOptions(
+						ConfluenceWorldOptions.Difficulty.MASTER,
+						ConfluenceWorldOptions.Evil.CRIMSON),
+				ConfluenceWorldOptions.readFrom(loaded.settings()).orElseThrow());
+	}
+
 	@Test
 	void compatibilityOptionsRoundTripWithoutChangingVanillaOrUnrelatedSettings() {
 		var base =

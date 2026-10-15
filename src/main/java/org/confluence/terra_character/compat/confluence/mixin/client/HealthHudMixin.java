@@ -1,4 +1,4 @@
-package org.confluence.terra_character_confluence.mixin.client;
+package org.confluence.terra_character.compat.confluence.mixin.client;
 
 import com.llamalad7.mixinextras.injector.wrapoperation.*;
 

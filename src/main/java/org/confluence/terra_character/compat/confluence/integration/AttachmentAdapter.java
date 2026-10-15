@@ -1,4 +1,4 @@
-package org.confluence.terra_character_confluence.integration;
+package org.confluence.terra_character.compat.confluence.integration;
 
 import net.minecraft.nbt.*;
 import net.minecraft.resources.ResourceLocation;
@@ -11,7 +11,7 @@ import org.confluence.mod.common.attachment.*;
 import org.confluence.mod.common.item.common.EverBeneficialItem;
 import org.confluence.mod.util.PlayerUtils;
 import org.confluence.terra_character.api.integration.CharacterDataAdapter;
-import org.confluence.terra_character_confluence.mixin.ManaMixin;
+import org.confluence.terra_character.compat.confluence.mixin.ManaMixin;
 
 import java.util.*;
 import java.util.function.Supplier;
