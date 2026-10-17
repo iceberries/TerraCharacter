@@ -187,5 +187,17 @@
   "terra_character.channel.account_head": "皮肤 · 头部",
   "terra_character.channel.account_body": "皮肤 · 躯干",
   "terra_character.channel.account_arms": "皮肤 · 手臂",
-  "terra_character.channel.account_legs": "皮肤 · 腿部"
+  "terra_character.channel.account_legs": "皮肤 · 腿部",
+  "terra_character.skin.tool.select": "工具：矩形选区",
+  "terra_character.skin.selection.left": "逆时针 90°",
+  "terra_character.skin.selection.right": "顺时针 90°",
+  "terra_character.skin.selection.clear": "取消选区",
+  "terra_character.skin.selection.save": "保存为部件",
+  "terra_character.skin.selection.name": "请输入部件名称",
+  "terra_character.skin.selection.save_failed": "保存失败，请查看日志后重试",
+  "terra_character.skin.selection.saved": "已保存，可在换装图库中选择",
+  "terra_character.skin.selection.outside": "旋转后超出当前面，请移动或缩小选区",
+  "terra_character.skin.selection.no_slot": "选区跨部位或未定义范围，请用部位框选设置",
+  "terra_character.skin.selection.help.short": "拖框/移动 · R旋转 · Esc取消",
+  "terra_character.skin.selection.help": "左键拖框，选区内拖动移动。Shift 拖动重新框选；方向键微移，R / Shift+R 旋转，右键取消。仅操作当前面和编辑层。"
 }

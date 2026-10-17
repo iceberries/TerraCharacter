@@ -121,6 +121,15 @@ public final class CharacterSkins {
 
 	/** Caller owns the image. Preserve the bundled outer layer; mask unused UVs. */
 	public static NativeImage image(CharacterAppearance appearance) {
+		return image(appearance, true);
+	}
+
+	/** Copy raw composed pixels so the final custom dye pass is applied only once after a move. */
+	static NativeImage beforeCustomDyes(CharacterAppearance appearance) {
+		return image(appearance, false);
+	}
+
+	private static NativeImage image(CharacterAppearance appearance, boolean customDyes) {
 		boolean slim = appearance.bodyStyle().endsWith(":slim");
 		var image =
 				!appearance.baseSkin().isEmpty()
@@ -173,7 +182,7 @@ public final class CharacterSkins {
 				else if ((base || outer) && paint != 0 && paint != SkinPaint.TRANSPARENT)
 					image.setPixelRGBA(x, y, swapRedBlue(paint));
 			}
-		BaseSkinDyes.applyCustom(image, appearance);
+		if (customDyes) BaseSkinDyes.applyCustom(image, appearance);
 		return image;
 	}
 

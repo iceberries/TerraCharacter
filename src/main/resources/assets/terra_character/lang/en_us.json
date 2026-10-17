@@ -187,5 +187,17 @@
   "terra_character.channel.account_head": "Skin · Head",
   "terra_character.channel.account_body": "Skin · Torso",
   "terra_character.channel.account_arms": "Skin · Arms",
-  "terra_character.channel.account_legs": "Skin · Legs"
+  "terra_character.channel.account_legs": "Skin · Legs",
+  "terra_character.skin.tool.select": "Tool: Rectangular Select",
+  "terra_character.skin.selection.left": "Rotate -90°",
+  "terra_character.skin.selection.right": "Rotate +90°",
+  "terra_character.skin.selection.clear": "Deselect",
+  "terra_character.skin.selection.save": "Save as Part",
+  "terra_character.skin.selection.name": "Enter part name",
+  "terra_character.skin.selection.save_failed": "Save failed. Check the log and retry.",
+  "terra_character.skin.selection.saved": "Saved. Available in the wardrobe gallery.",
+  "terra_character.skin.selection.outside": "Rotated selection exceeds this face. Move or shrink it.",
+  "terra_character.skin.selection.no_slot": "Selection crosses slots or is unassigned. Define its region first.",
+  "terra_character.skin.selection.help.short": "Select/Move · R rotate · Esc deselect",
+  "terra_character.skin.selection.help": "Drag to select; drag inside to move. Shift-drag makes a new selection. Arrow keys nudge, R / Shift+R rotates, right-click deselects. Only the current face and editing layer are affected."
 }
