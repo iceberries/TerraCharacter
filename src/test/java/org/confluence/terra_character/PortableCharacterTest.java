@@ -61,6 +61,10 @@ class PortableCharacterTest {
 			var d = client.read(p.id());
 			d.getCompound("Worlds").put(UUID.randomUUID().toString(), new CompoundTag());
 			d.getCompound("Journey").putInt("Research", 11);
+			d.put(
+					"Statistics",
+					CharacterStatisticsCodec.encode(
+							new CharacterStatistics(20, 20, false, 0, 0, 100)));
 			client.commit(p.id(), d, 0);
 		}
 		try (var lock =
@@ -69,6 +73,10 @@ class PortableCharacterTest {
 			d.getCompound("Worlds").put(UUID.randomUUID().toString(), new CompoundTag());
 			for (int i = 0; i < 7; i++) {
 				d.getCompound("Journey").putInt("Research", 22);
+				d.put(
+						"Statistics",
+						CharacterStatisticsCodec.encode(
+								new CharacterStatistics(20, 20, false, 0, 0, 200)));
 				server.commit(p.id(), d, d.getLong("Revision"));
 			}
 		}
@@ -77,8 +85,13 @@ class PortableCharacterTest {
 		try (var lock = client.lock(p.id())) {
 			PortableCharacter.merge(client, p.id(), PortableCharacter.extract(server.read(p.id())));
 			assertEquals(22, client.read(p.id()).getCompound("Journey").getInt("Research"));
+			assertEquals(200, CharacterStatisticsCodec.read(client.read(p.id())).playTicks());
 			var d = client.read(p.id());
 			d.getCompound("Journey").putInt("Research", 99);
+			d.put(
+					"Statistics",
+					CharacterStatisticsCodec.encode(
+							new CharacterStatistics(18, 20, false, 0, 0, 500)));
 			client.commit(p.id(), d, d.getLong("Revision"));
 		}
 		assertTrue(
@@ -86,6 +99,7 @@ class PortableCharacterTest {
 		try (var lock =
 				RemoteCharacters.prepare(server, PortableCharacter.extract(client.read(p.id())))) {
 			assertEquals(99, server.read(p.id()).getCompound("Journey").getInt("Research"));
+			assertEquals(500, CharacterStatisticsCodec.read(server.read(p.id())).playTicks());
 			assertEquals(serverWorlds, server.read(p.id()).getCompound("Worlds"));
 		}
 		assertEquals(clientWorlds, client.read(p.id()).getCompound("Worlds"));

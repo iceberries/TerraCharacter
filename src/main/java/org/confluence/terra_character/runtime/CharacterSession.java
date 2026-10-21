@@ -19,6 +19,8 @@ import org.confluence.terra_character.network.AvatarPayload;
 import org.confluence.terra_character.network.CharacterHandshake;
 import org.confluence.terra_character.network.CharacterSync;
 import org.confluence.terra_character.network.ProfileStatePayload;
+import org.confluence.terra_character.service.CharacterPlayTime;
+import org.confluence.terra_character.service.CharacterStatisticsService;
 import org.confluence.terra_character.storage.*;
 import org.confluence.terra_character.storage.CharacterStore;
 
@@ -42,6 +44,7 @@ public final class CharacterSession {
 	private volatile boolean joined;
 	private final UUID account;
 	private final Connection connection;
+	private final CharacterPlayTime playTime;
 	private boolean shared;
 	private UUID transferToken;
 
@@ -84,6 +87,7 @@ public final class CharacterSession {
 		this.connection = connection;
 		shared = account != null || WorldStore.shared(request.worldDirectory());
 		document = request.store().read(request.character());
+		playTime = new CharacterPlayTime(CharacterStatisticsCodec.read(document).playTicks());
 		profile = ProfileCodec.character(document.getCompound("Profile"));
 		world = WorldStore.read(request.worldDirectory()).orElse(request.world());
 		new LaunchSelection(profile, world);
@@ -433,6 +437,10 @@ public final class CharacterSession {
 		}
 	}
 
+	public void tickPlayTime() {
+		playTime.tick(joined && !failed);
+	}
+
 	public void save(ServerPlayer player) throws IOException {
 		if (failed) throw new IOException("Character session suspended after a storage failure");
 		verifyAttachments(player);
@@ -457,6 +465,10 @@ public final class CharacterSession {
 		next.put("Worlds", worlds);
 		next.put("Adapters", portable);
 		next.put("Profile", ProfileCodec.character(profile));
+		next.put(
+				"Statistics",
+				CharacterStatisticsCodec.encode(
+						CharacterStatisticsService.capture(player, playTime.getTicks())));
 		request.store().commit(profile.id(), next, document.getLong("Revision"));
 		document.merge(next);
 		snapshot(player, false);

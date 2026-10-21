@@ -12,18 +12,27 @@ import net.neoforged.fml.ModList;
 
 import org.confluence.terra_character.TerraCharacter;
 import org.confluence.terra_character.api.model.*;
+import org.confluence.terra_character.service.CharacterPlayTime;
+import org.confluence.terra_character.service.CharacterStatisticsService;
 import org.confluence.terra_character.storage.SessionCheckpoint;
+import org.confluence.terra_character.storage.StarQueue;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.util.*;
 
 public final class CharacterSelectionScreen extends ProfileScreen {
 	private List<CharacterProfile> profiles = List.of();
 	private UUID selected;
+	private StarQueue stars;
 	private int page;
 	private int pageCount = 1;
 	private final boolean trash;
 	private final Map<UUID, CharacterPortraits.PreviewPlayer> portraits = new HashMap<>();
+	private final Map<UUID, CharacterStatistics> statistics = new HashMap<>();
+
+	private record CardLine(Component text, int color) {}
+
 	private final Map<UUID, Float> rotations = new HashMap<>();
 	private UUID rotatingCharacter;
 
@@ -31,6 +40,7 @@ public final class CharacterSelectionScreen extends ProfileScreen {
 	public void removed() {
 		rotatingCharacter = null;
 		portraits.clear();
+		statistics.clear();
 		super.removed();
 	}
 
@@ -58,12 +68,20 @@ public final class CharacterSelectionScreen extends ProfileScreen {
 			ClientProfiles.error(getBack(), ex);
 			return;
 		}
+		if (!trash) {
+			try {
+				stars = ClientStars.characters();
+				profiles = stars.order(profiles, profile -> profile.id().toString());
+			} catch (IOException ex) {
+				stars = null;
+			}
+		}
 		int span = Math.min(900, width - 24),
 				left = (width - span) / 2,
 				columns = Math.max(1, span / 126);
 		int gridHeight = height - (trash ? 105 : 130);
 		int cardWidth = (span - (columns - 1) * 8) / columns,
-				cardHeight = Math.min(132, Math.max(trash ? 60 : 80, gridHeight));
+				cardHeight = Math.min(164, Math.max(trash ? 80 : 100, gridHeight));
 		int rowCount = Math.max(1, (gridHeight + 8) / (cardHeight + 8)), rows = columns * rowCount;
 		pageCount = Math.max(1, (profiles.size() + rows - 1) / rows);
 		page = Math.min(page, pageCount - 1);
@@ -80,6 +98,22 @@ public final class CharacterSelectionScreen extends ProfileScreen {
 							cardWidth,
 							cardHeight,
 							profile));
+			if (!trash) {
+				addRenderableWidget(
+						new StarButton(
+								rowLeft + (index % columns) * (cardWidth + 8) + cardWidth - 25,
+								42 + (index / columns) * (cardHeight + 8),
+								stars != null && stars.contains(profile.id().toString()),
+								() ->
+										run(
+												() -> {
+													ClientStars.characters()
+															.toggle(profile.id().toString());
+													clicks.reset();
+													page = 0;
+													rebuildWidgets();
+												})));
+			}
 		}
 		if (!trash) {
 			button(
@@ -264,6 +298,7 @@ public final class CharacterSelectionScreen extends ProfileScreen {
 
 	private void clearSelection() {
 		portraits.remove(selected);
+		statistics.remove(selected);
 		rotations.remove(selected);
 		selected = null;
 		clicks.reset();
@@ -347,28 +382,90 @@ public final class CharacterSelectionScreen extends ProfileScreen {
 		rebuildWidgets();
 	}
 
+	private List<CardLine> cardLines(CharacterProfile profile, CharacterStatistics summary) {
+		var lines = new ArrayList<CardLine>();
+		lines.add(new CardLine(Component.literal(profile.name()), EditorUi.TEXT));
+		var info =
+				ModList.get().isLoaded("confluence")
+						? ClientProfiles.difficulty(profile.difficulty()).copy()
+						: Component.empty();
+		if (profile.status() == CharacterProfile.Status.DEAD)
+			info.append(ClientProfiles.text("dead"));
+		if (!info.getString().isEmpty())
+			lines.add(
+					new CardLine(
+							info,
+							profile.status() == CharacterProfile.Status.DEAD
+									? 0xFFFF8888
+									: EditorUi.MUTED));
+		lines.add(
+				new CardLine(
+						ClientProfiles.text(
+								"characters.health",
+								number(summary.health()),
+								number(summary.maxHealth())),
+						0xFFFF9999));
+		if (summary.hasMana())
+			lines.add(
+					new CardLine(
+							ClientProfiles.text(
+									"characters.mana",
+									number(summary.mana()),
+									number(summary.maxMana())),
+							0xFF99BBFF));
+		lines.add(
+				new CardLine(
+						ClientProfiles.text(
+								"characters.play_time",
+								CharacterPlayTime.format(summary.playTicks())),
+						EditorUi.MUTED));
+		return List.copyOf(lines);
+	}
+
+	private static String number(float value) {
+		return value == Math.floor(value)
+				? String.format(Locale.ROOT, "%.0f", value)
+				: String.format(Locale.ROOT, "%.1f", value);
+	}
+
 	private final class CharacterCard extends AbstractButton {
 		private final CharacterProfile profile;
 		private CharacterPortraits.PreviewPlayer portrait;
+		private final List<CardLine> lines;
 
 		CharacterCard(int x, int y, int w, int h, CharacterProfile profile) {
 			super(x, y, w, h, Component.literal(profile.name()));
 			this.profile = profile;
-			setTooltip(
-					Tooltip.create(
-							Component.literal(profile.name())
-									.append("\n")
-									.append(ClientProfiles.text("characters.rotate"))));
 			try {
-				if (!portraits.containsKey(profile.id()))
-					portraits.put(
-							profile.id(),
-							CharacterPortraits.load(
-									profile, ClientProfiles.store().read(profile.id())));
+				if (!portraits.containsKey(profile.id()) || !statistics.containsKey(profile.id())) {
+					var document = ClientProfiles.store().read(profile.id());
+					statistics.put(profile.id(), CharacterStatisticsService.summary(document));
+					if (!portraits.containsKey(profile.id()))
+						portraits.put(profile.id(), CharacterPortraits.load(profile, document));
+				}
 				portrait = portraits.get(profile.id());
 			} catch (Exception ex) {
-				TerraCharacter.LOGGER.warn("Cannot load character portrait {}", profile.id(), ex);
+				TerraCharacter.LOGGER.warn("Cannot load character card {}", profile.id(), ex);
 			}
+			lines =
+					cardLines(
+							profile,
+							statistics.getOrDefault(profile.id(), CharacterStatistics.DEFAULT));
+			var tooltip = Component.empty();
+			for (var line : lines) tooltip.append(line.text()).append("\n");
+			tooltip.append(ClientProfiles.text("characters.rotate"));
+			setTooltip(Tooltip.create(tooltip));
+		}
+
+		@Override
+		public boolean mouseClicked(double x, double y, int button) {
+			// The star is a separate focusable widget; do not consume its click as card selection.
+			if (!trash
+					&& x >= getX() + getWidth() - 25
+					&& x < getX() + getWidth() - 7
+					&& y >= getY() + 7
+					&& y < getY() + 25) return false;
+			return super.mouseClicked(x, y, button);
 		}
 
 		@Override
@@ -391,17 +488,23 @@ public final class CharacterSelectionScreen extends ProfileScreen {
 			int x = getX(), y = getY(), w = getWidth(), h = getHeight();
 			boolean chosen = profile.id().equals(selected);
 			EditorUi.frame(g, x, y, w, h, chosen, isHoveredOrFocused());
-			EditorUi.row(g, x + 8, y + h - 35, w - 16, 27, chosen, false);
-			g.enableScissor(x + 8, y + 8, x + w - 8, y + h - 39);
+			int footerHeight = lines.size() * 11 + 12, modelBottom = y + h - footerHeight - 4;
+			EditorUi.row(g, x + 8, y + h - footerHeight, w - 16, footerHeight - 8, chosen, false);
+			g.enableScissor(x + 8, y + 8, x + w - 8, modelBottom);
 			try {
-				int scale = Math.max(1, Math.min(43, Math.min((h - 48) / 2, (w - 20) * 10 / 13)));
+				int scale =
+						Math.max(
+								1,
+								Math.min(
+										43,
+										Math.min((h - footerHeight - 16) / 2, (w - 20) * 10 / 13)));
 				float yaw = rotations.getOrDefault(profile.id(), 0f);
 				if (portrait != null)
-					CharacterPortraits.render(g, portrait, x + w / 2, y + h - 39, scale, yaw);
+					CharacterPortraits.render(g, portrait, x + w / 2, modelBottom, scale, yaw);
 				// Convert entity portrait yaw at the raw-model rendering boundary.
 				else
 					CharacterSkins.preview(
-							g, profile.appearance(), x + w / 2, y + h - 39, scale, 180 - yaw);
+							g, profile.appearance(), x + w / 2, modelBottom, scale, 180 - yaw);
 			} catch (Exception ex) {
 				portrait = null;
 				portraits.put(profile.id(), null);
@@ -409,30 +512,18 @@ public final class CharacterSelectionScreen extends ProfileScreen {
 			} finally {
 				g.disableScissor();
 			}
-			EditorUi.text(
-					g,
-					Component.literal(profile.name()),
-					x + 14,
-					y + h - 32,
-					w - 28,
-					10,
-					EditorUi.TEXT,
-					true);
-			var info =
-					ModList.get().isLoaded("confluence")
-							? ClientProfiles.difficulty(profile.difficulty()).copy()
-							: Component.empty();
-			if (profile.status() == CharacterProfile.Status.DEAD)
-				info.append(ClientProfiles.text("dead"));
-			EditorUi.text(
-					g,
-					info,
-					x + 14,
-					y + h - 20,
-					w - 28,
-					10,
-					profile.status() == CharacterProfile.Status.DEAD ? 0xFFFF8888 : EditorUi.MUTED,
-					true);
+			for (int i = 0; i < lines.size(); i++) {
+				var line = lines.get(i);
+				EditorUi.text(
+						g,
+						line.text(),
+						x + 14,
+						y + h - footerHeight + 2 + i * 11,
+						w - 28,
+						10,
+						line.color(),
+						true);
+			}
 		}
 	}
 

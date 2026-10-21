@@ -30,6 +30,10 @@ public final class CharacterWorldScreen extends ProfileScreen {
 	protected void init() {
 		try {
 			worlds = WorldIndex.scan(ClientProfiles.saves());
+			try {
+				worlds = ClientStars.worlds().order(worlds, WorldIndex.Entry::folder);
+			} catch (IOException ignored) {
+			}
 		} catch (Exception ex) {
 			ClientProfiles.error(getBack(), ex);
 			return;
@@ -54,14 +58,30 @@ public final class CharacterWorldScreen extends ProfileScreen {
 			button(
 					left,
 					36 + (i - page * rows) * 24,
-					span,
-					Component.literal(font.plainSubstrByWidth(label, span - 12)),
+					span - 24,
+					Component.literal(font.plainSubstrByWidth(label, span - 38)),
 					() -> {
 						selected = world;
 						if (clicks.click(world.folder(), Util.getMillis())
 								&& world.profile() != null) run(this::play);
 						else rebuildWidgets();
 					});
+			try {
+				addRenderableWidget(
+						new StarButton(
+								left + span - 18,
+								37 + (i - page * rows) * 24,
+								ClientStars.worlds().contains(world.folder()),
+								() ->
+										run(
+												() -> {
+													ClientStars.worlds().toggle(world.folder());
+													clicks.reset();
+													page = 0;
+													rebuildWidgets();
+												})));
+			} catch (IOException ignored) {
+			}
 		}
 		button(
 								left,

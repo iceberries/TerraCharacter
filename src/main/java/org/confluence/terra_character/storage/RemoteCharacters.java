@@ -50,6 +50,7 @@ public final class RemoteCharacters {
 	public static CharacterStore.IdentityLock prepare(CharacterStore store, CompoundTag portable)
 			throws IOException {
 		PortableCharacter.validate(portable);
+		portable = PortableCharacter.extract(portable);
 		var submitted = metadata(portable.getCompound("Profile"));
 		if (!Files.exists(store.file(submitted.id()))) {
 			if (Files.isDirectory(store.root()))

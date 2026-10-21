@@ -262,6 +262,7 @@ public final class CharacterStore implements ProfileRepository<CharacterProfile>
 	}
 
 	public static void validateBundle(CompoundTag tag) throws IOException {
+		CharacterStatisticsCodec.validate(tag);
 		if (!tag.contains("Revision", Tag.TAG_LONG) || tag.getLong("Revision") < 0)
 			throw new IOException("Invalid character revision");
 		for (String key : List.of("Profile", "Adapters", "Worlds", "Journey"))

@@ -24,7 +24,7 @@ public final class TerraCharacter {
 		ConfluenceCompatibility.initialize(bus);
 		bus.addListener(
 				(RegisterPayloadHandlersEvent event) -> {
-					var registrar = event.registrar("7").optional();
+					var registrar = event.registrar("8").optional();
 					registrar.playToClient(
 							ProfileStatePayload.TYPE,
 							ProfileStatePayload.CODEC,

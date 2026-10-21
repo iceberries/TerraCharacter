@@ -199,5 +199,10 @@
   "terra_character.skin.selection.outside": "Rotated selection exceeds this face. Move or shrink it.",
   "terra_character.skin.selection.no_slot": "Selection crosses slots or is unassigned. Define its region first.",
   "terra_character.skin.selection.help.short": "Select/Move · R rotate · Esc deselect",
-  "terra_character.skin.selection.help": "Drag to select; drag inside to move. Shift-drag makes a new selection. Arrow keys nudge, R / Shift+R rotates, right-click deselects. Only the current face and editing layer are affected."
+  "terra_character.skin.selection.help": "Drag to select; drag inside to move. Shift-drag makes a new selection. Arrow keys nudge, R / Shift+R rotates, right-click deselects. Only the current face and editing layer are affected.",
+  "terra_character.star.add": "Star (most recently starred first)",
+  "terra_character.star.remove": "Unstar",
+  "terra_character.characters.health": "Health %s / %s",
+  "terra_character.characters.mana": "Mana %s / %s",
+  "terra_character.characters.play_time": "Played %s"
 }

@@ -7,10 +7,10 @@ import net.neoforged.neoforge.common.NeoForge;
 import org.confluence.mod.common.attachment.*;
 import org.confluence.mod.common.init.ModAttachmentTypes;
 import org.confluence.terra_character.api.integration.CharacterDataAdapter.Scope;
-import org.confluence.terra_character.integration.AdapterRegistry;
 import org.confluence.terra_character.compat.confluence.integration.*;
 import org.confluence.terra_character.compat.confluence.world.ConfluenceWorldOptions;
 import org.confluence.terra_character.compat.confluence.world.WorldEvents;
+import org.confluence.terra_character.integration.AdapterRegistry;
 
 /**
  * Optional integration bootstrap registering Confluence ownership adapters and world-option
@@ -53,9 +53,11 @@ public final class TerraCharacterConfluence {
 		AdapterRegistry.register(new SpecialDataAdapter(Scope.CHARACTER_WORLD));
 		AdapterRegistry.register(new CuriosAdapter());
 		NeoForge.EVENT_BUS.register(WorldEvents.class);
+		NeoForge.EVENT_BUS.register(CharacterStatisticsIntegration.class);
 		if (FMLEnvironment.dist.isClient()) {
 			try {
-				Class.forName("org.confluence.terra_character.compat.confluence.client.ClientBootstrap")
+				Class.forName(
+								"org.confluence.terra_character.compat.confluence.client.ClientBootstrap")
 						.getMethod("initialize", IEventBus.class)
 						.invoke(null, bus);
 			} catch (ReflectiveOperationException ex) {

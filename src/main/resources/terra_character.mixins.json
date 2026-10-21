@@ -16,6 +16,8 @@
     "client.CreateWorldMixin",
     "client.PlayerSkinMixin",
     "client.WorldOpenMixin",
+    "client.WorldStarsMixin",
+    "client.WorldStarEntryMixin",
     "client.LanMixin",
     "client.HeartMixin",
     "client.MultiplayerLeaveMixin",

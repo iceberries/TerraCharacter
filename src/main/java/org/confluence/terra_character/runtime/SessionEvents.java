@@ -79,6 +79,8 @@ public final class SessionEvents {
 	@SubscribeEvent
 	public static void tick(PlayerTickEvent.Post event) {
 		if (event.getEntity() instanceof ServerPlayer player) {
+			var playing = CharacterSession.of(player);
+			if (playing != null) playing.tickPlayTime();
 			if (player.tickCount % 1200 == 0) save(player);
 			else if (player.tickCount % 100 == 0) {
 				var session = CharacterSession.of(player);

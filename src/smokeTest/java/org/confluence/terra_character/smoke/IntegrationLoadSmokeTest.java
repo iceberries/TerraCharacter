@@ -2,6 +2,7 @@ package org.confluence.terra_character.smoke;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.TitleScreen;
+import net.minecraft.client.gui.screens.worldselection.WorldSelectionList;
 import net.minecraft.nbt.CompoundTag;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -11,7 +12,10 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
 
 import org.confluence.terra_character.TerraCharacter;
 import org.confluence.terra_character.client.WorldEditors;
+import org.confluence.terra_character.client.WorldStarEntry;
+import org.confluence.terra_character.client.WorldStarsView;
 import org.confluence.terra_character.integration.AdapterRegistry;
+import org.confluence.terra_character.service.CharacterStatisticsService;
 import org.confluence.terra_character.storage.AtomicNbt;
 
 import java.nio.file.Files;
@@ -55,6 +59,15 @@ public final class IntegrationLoadSmokeTest {
 							.endsWith(Path.of("build", "integration-smoke-run")),
 					"Isolated startup directory");
 			boolean confluence = ModList.get().isLoaded("confluence");
+			var summary = CharacterStatisticsService.summary(new CompoundTag());
+			require(
+					summary.hasMana() == confluence && summary.playTicks() == 0,
+					"Offline character statistics load without an active world; mana is optional");
+			require(
+					WorldStarsView.class.isAssignableFrom(WorldSelectionList.class)
+							&& WorldStarEntry.class.isAssignableFrom(
+									WorldSelectionList.WorldListEntry.class),
+					"World star hooks apply without replacing the existing world list");
 			require(
 					!ModList.get().isLoaded("terra_character_confluence"),
 					"No separate compatibility mod installed");
@@ -122,8 +135,8 @@ public final class IntegrationLoadSmokeTest {
 					"PASS: "
 							+ (confluence
 									? "built-in Confluence integration, eight adapters, client"
-										  + " hooks, conditional mixins and legacy adapter"
-										  + " envelopes"
+											+ " hooks, conditional mixins and legacy adapter"
+											+ " envelopes"
 									: "standalone loading, optional integration disabled, no"
 											+ " Confluence runtime classes");
 		} catch (Throwable ex) {

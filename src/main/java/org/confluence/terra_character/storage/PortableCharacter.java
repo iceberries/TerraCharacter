@@ -29,15 +29,21 @@ public final class PortableCharacter {
 		var out = new CompoundTag();
 		for (String key : Set.of("Profile", "Adapters", "Journey"))
 			out.put(key, document.getCompound(key).copy());
+		out.put(
+				"Statistics",
+				CharacterStatisticsCodec.encode(CharacterStatisticsCodec.read(document)));
 		return out;
 	}
 
 	public static void validate(CompoundTag portable) throws IOException {
-		if (!portable.getAllKeys().equals(Set.of("Profile", "Adapters", "Journey")))
+		if (!portable.getAllKeys().equals(Set.of("Profile", "Adapters", "Journey"))
+				&& !portable.getAllKeys()
+						.equals(Set.of("Profile", "Adapters", "Journey", "Statistics")))
 			throw new IOException("Invalid portable character sections");
 		for (String key : portable.getAllKeys())
 			if (!portable.contains(key, Tag.TAG_COMPOUND))
 				throw new IOException("Invalid portable character section: " + key);
+		CharacterStatisticsCodec.validate(portable);
 		// Death is allowed in a server snapshot, but rejected when requesting entry.
 		var metadata = portable.getCompound("Profile").copy();
 		metadata.putString("Status", "ACTIVE");
@@ -78,6 +84,7 @@ public final class PortableCharacter {
 	private static void merge(CharacterStore store, UUID id, CompoundTag portable, boolean mirror)
 			throws IOException {
 		validate(portable);
+		portable = extract(portable);
 		if (!ProfileCodec.character(portable.getCompound("Profile")).id().equals(id))
 			throw new IOException("Portable character identity mismatch");
 		var document = store.read(id);
