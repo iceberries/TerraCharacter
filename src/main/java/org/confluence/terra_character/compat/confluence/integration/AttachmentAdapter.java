@@ -11,6 +11,7 @@ import org.confluence.mod.common.attachment.*;
 import org.confluence.mod.common.item.common.PermanentUpgrade;
 import org.confluence.mod.util.PlayerUtils;
 import org.confluence.terra_character.api.integration.CharacterDataAdapter;
+import org.confluence.terra_character.compat.confluence.mixin.AttachmentHolderAccessor;
 import org.confluence.terra_character.compat.confluence.mixin.ManaMixin;
 
 import java.util.*;
@@ -56,14 +57,25 @@ public final class AttachmentAdapter<T extends INBTSerializable<CompoundTag>>
 
 	@Override
 	public void initialize(ServerPlayer player) {
-		player.setData(type.get(), fresh.apply(player));
+		install(player, fresh.apply(player));
+	}
+
+	private void install(ServerPlayer player, T value) {
+		if (player.connection == null && value instanceof SoulStorage) {
+			// setData/getData automatically sync this attachment, but PlayerList.load runs
+			// before ServerGamePacketListenerImpl exists. Use NeoForge's non-syncing NBT path.
+			var attachments = new CompoundTag();
+			attachments.put("confluence:" + name, value.serializeNBT(player.registryAccess()));
+			((AttachmentHolderAccessor) player)
+					.terraCharacter$loadAttachments(player.registryAccess(), attachments);
+		} else player.setData(type.get(), value);
 	}
 
 	@Override
 	public void restore(ServerPlayer player, CompoundTag data, int version) {
 		var value = fresh.apply(player);
 		value.deserializeNBT(player.registryAccess(), data.copy());
-		player.setData(type.get(), value);
+		install(player, value);
 		if (value instanceof ManaStorage)
 			((ManaMixin) (Object) value)
 					.terraCharacter$setCurrentMana(data.getFloat("currentMana"));
@@ -123,5 +135,6 @@ public final class AttachmentAdapter<T extends INBTSerializable<CompoundTag>>
 			PlayerUtils.flushPrimitiveValueData(player);
 			PlayerUtils.syncSavedData(player);
 		}
+		if (name.equals("soul") && player.connection != null) player.syncData(type.get());
 	}
 }

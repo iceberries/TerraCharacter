@@ -21,6 +21,7 @@
     "client.LanMixin",
     "client.HeartMixin",
     "client.MultiplayerLeaveMixin",
+    "client.LocalDisconnectMixin",
     "client.ClientStopMixin"
   ],
   "injectors": {

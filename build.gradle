@@ -35,13 +35,17 @@ neoForge {
 		}
 		"${mod_id}" {
 			sourceSet(sourceSets.main)
-			if (providers.gradleProperty('accountSkinSmoke').orNull == 'true' || providers.gradleProperty('integrationSmoke').orNull == 'true' || providers.gradleProperty('menuSmoke').orNull == 'true' || providers.gradleProperty('characterSmoke').orNull == 'true' || providers.gradleProperty('skinSmoke').orNull == 'true' || providers.gradleProperty('multiplayerSmoke').orNull == 'true') sourceSet(sourceSets.smokeTest)
+			if (providers.gradleProperty('accountSkinSmoke').orNull == 'true' || providers.gradleProperty('integrationSmoke').orNull == 'true' || providers.gradleProperty('localSessionSmoke').orNull == 'true' || providers.gradleProperty('menuSmoke').orNull == 'true' || providers.gradleProperty('characterSmoke').orNull == 'true' || providers.gradleProperty('skinSmoke').orNull == 'true' || providers.gradleProperty('multiplayerSmoke').orNull == 'true') sourceSet(sourceSets.smokeTest)
 		}
 	}
 	runs {
 		client {
 			client()
 			if (withConfluence) gameDirectory = rootProject.project(':ConfluenceOtherworld').file('run')
+			if (providers.gradleProperty('localSessionSmoke').orNull == 'true') {
+				gameDirectory = layout.buildDirectory.dir('local-session-smoke-run').get().asFile
+				systemProperty 'terra_character.local_session_smoke', 'true'
+			}
 			if (providers.gradleProperty('integrationSmoke').orNull == 'true') {
 				gameDirectory = layout.buildDirectory.dir('integration-smoke-run').get().asFile
 				systemProperty 'terra_character.integration_smoke', 'true'

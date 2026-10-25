@@ -204,5 +204,9 @@
   "terra_character.star.remove": "取消星标",
   "terra_character.characters.health": "生命 %s / %s",
   "terra_character.characters.mana": "魔力 %s / %s",
-  "terra_character.characters.play_time": "游玩 %s"
+  "terra_character.characters.play_time": "游玩 %s",
+  "terra_character.actions.help": "滚轮／方向键切换 · 点击中间卡片使用",
+  "terra_character.actions.select_first": "请先选择人物",
+  "terra_character.characters.previous_page": "上一页人物 · 人物区滚轮翻页",
+  "terra_character.characters.next_page": "下一页人物 · 人物区滚轮翻页"
 }

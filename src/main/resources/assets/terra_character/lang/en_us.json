@@ -204,5 +204,9 @@
   "terra_character.star.remove": "Unstar",
   "terra_character.characters.health": "Health %s / %s",
   "terra_character.characters.mana": "Mana %s / %s",
-  "terra_character.characters.play_time": "Played %s"
+  "terra_character.characters.play_time": "Played %s",
+  "terra_character.actions.help": "Scroll / arrow keys to select · Click the center card to use",
+  "terra_character.actions.select_first": "Select a character first",
+  "terra_character.characters.previous_page": "Previous characters · Scroll over characters to turn pages",
+  "terra_character.characters.next_page": "Next characters · Scroll over characters to turn pages"
 }

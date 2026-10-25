@@ -4,7 +4,7 @@
   "minVersion": "0.8",
   "package": "org.confluence.terra_character.compat.confluence.mixin",
   "compatibilityLevel": "JAVA_21",
-  "mixins": ["PlayerUtilsMixin", "SoftcorePacketMixin", "DifficultyMixin", "QuestResetMixin", "ManaMixin"],
+  "mixins": ["PlayerUtilsMixin", "SoftcorePacketMixin", "DifficultyMixin", "QuestResetMixin", "ManaMixin", "AttachmentHolderAccessor"],
   "client": ["client.HealthHudMixin"],
   "injectors": {"defaultRequire": 1}
 }

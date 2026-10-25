@@ -33,6 +33,13 @@ public final class TerraCharacterConfluence {
 		AdapterRegistry.register(
 				new AttachmentAdapter<>("mana", ModAttachmentTypes.MANA_STORAGE, ManaStorage::new));
 		AdapterRegistry.register(
+				new AttachmentAdapter<>("soul", ModAttachmentTypes.SOUL_STORAGE, SoulStorage::new));
+		AdapterRegistry.register(
+				new AttachmentAdapter<>(
+						"soulcerer_skill",
+						ModAttachmentTypes.SOUL_SKILL_STORAGE,
+						SoulSkillStorage::new));
+		AdapterRegistry.register(
 				new AttachmentAdapter<>(
 						"ever_beneficial",
 						ModAttachmentTypes.EVER_BENEFICIAL,
@@ -49,6 +56,11 @@ public final class TerraCharacterConfluence {
 						PlayerPiggyBankContainer::new));
 		AdapterRegistry.register(
 				new BankAdapter<>("safe", ModAttachmentTypes.SAFE, PlayerSafeContainer::new));
+		AdapterRegistry.register(
+				new BankAdapter<>(
+						"void_vault",
+						ModAttachmentTypes.VOID_VAULT,
+						PlayerVoidVaultContainer::new));
 		AdapterRegistry.register(new SpecialDataAdapter(Scope.CHARACTER));
 		AdapterRegistry.register(new SpecialDataAdapter(Scope.CHARACTER_WORLD));
 		AdapterRegistry.register(new CuriosAdapter());

@@ -4,6 +4,10 @@
 
 保留魔力、永久增益、扩展背包、饰品、猪猪储蓄罐、保险箱与渔夫任务的归属适配；世界选项、特殊种子、难度、掉钱、复活与生命 HUD 的兼容接点保持不变。八个适配器和世界选项仍使用 `terra_character_confluence:*` 数据标识，已有存档无需重写。此命名空间不再表示一个独立安装的模组。
 
+汇流 1.2.11 新增的灵魂、灵魂技能和虚空保险库也按人物保存，新增 ID 分别为 `terra_character_confluence:soul`、`terra_character_confluence:soulcerer_skill`、`terra_character_confluence:void_vault`，共十一项适配器。旧人物没有这些记录时使用全新默认数据，不继承登录账号或另一个人物的进度。灵魂附件会自动同步网络，因此登录前使用 NeoForge 的非同步反序列化路径安装，连接建立后再同步，避免加载阶段访问尚未创建的玩家连接。
+
+单人内置服务器异常断开时返回人物选择页，保留原始断开详情；实际多人连接继续沿用服务器列表。若存档保护检查中止会话，最后有效人物存档保留，存在恢复标记时应从人物选择页恢复会话，不自动回滚正在使用的世界。
+
 兼容代码的 Java 包为 `org.confluence.terra_character.compat.confluence`，其下包含 `client`、`integration`、`world` 和 `mixin`。Java 包名与持久化命名空间分离：旧适配器 ID、世界选项键、资源翻译键及旧兼容模组的冲突检查均保持原样。反射启动入口和 Mixin 配置指向新包，旧包不再包含实现类。
 
 兼容入口在检测到 `confluence` 后才通过延迟加载调用。兼容类不再使用自动事件订阅注解；公共监听器由入口注册，客户端监听器和预览能力仅在物理客户端注册。Mixin 配置使用独立插件，在模组发现阶段依据 Confluence 的存在决定是否应用，缺少汇流时不解析其目标类。
@@ -18,6 +22,8 @@
 # 仅检查条件加载，不进入世界，检查结束自动退出
 .\gradlew.bat :TerraCharacter:runClient -PintegrationSmoke=true --offline --no-daemon
 .\gradlew.bat :TerraCharacter:runClient -PwithConfluence=true -PintegrationSmoke=true --offline --no-daemon
+# 仅验证单人进入、三项新增数据的保存恢复和断开返回，使用独立临时世界
+.\gradlew.bat :TerraCharacter:runClient -PwithConfluence=true -PlocalSessionSmoke=true --offline --no-daemon
 # 相关单元测试与发行包
 .\gradlew.bat :TerraCharacter:test --tests '*ConfluenceWorldOptionsTest' :TerraCharacter:jar --offline
 ```

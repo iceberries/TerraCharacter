@@ -3,9 +3,13 @@ package org.confluence.terra_character.client;
 import net.minecraft.Util;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractButton;
+import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.gui.screens.*;
+import net.minecraft.client.gui.screens.inventory.tooltip.BelowOrAboveWidgetTooltipPositioner;
+import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipPositioner;
+import net.minecraft.client.gui.screens.inventory.tooltip.MenuTooltipPositioner;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 import net.neoforged.fml.ModList;
@@ -16,17 +20,26 @@ import org.confluence.terra_character.service.CharacterPlayTime;
 import org.confluence.terra_character.service.CharacterStatisticsService;
 import org.confluence.terra_character.storage.SessionCheckpoint;
 import org.confluence.terra_character.storage.StarQueue;
+import org.joml.Vector2i;
+import org.lwjgl.glfw.GLFW;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.*;
 
 public final class CharacterSelectionScreen extends ProfileScreen {
+	private static final int FOOTER_HEIGHT = 22, STAR_SIZE = 18;
+	private static final int CARD_ASPECT_WIDTH = 7, CARD_ASPECT_HEIGHT = 6;
+	private static final int CARD_GAP = 10, MIN_CARD_WIDTH = 100;
 	private List<CharacterProfile> profiles = List.of();
 	private UUID selected;
 	private StarQueue stars;
 	private int page;
 	private int pageCount = 1;
+	private int gridTop, gridBottom;
+	private double pageScroll;
+	private String selectedAction;
+	private ActionCarousel actionCarousel;
 	private final boolean trash;
 	private final Map<UUID, CharacterPortraits.PreviewPlayer> portraits = new HashMap<>();
 	private final Map<UUID, CharacterStatistics> statistics = new HashMap<>();
@@ -76,33 +89,42 @@ public final class CharacterSelectionScreen extends ProfileScreen {
 				stars = null;
 			}
 		}
-		int span = Math.min(900, width - 24),
-				left = (width - span) / 2,
-				columns = Math.max(1, span / 126);
-		int gridHeight = height - (trash ? 105 : 130);
-		int cardWidth = (span - (columns - 1) * 8) / columns,
-				cardHeight = Math.min(164, Math.max(trash ? 80 : 100, gridHeight));
-		int rowCount = Math.max(1, (gridHeight + 8) / (cardHeight + 8)), rows = columns * rowCount;
-		pageCount = Math.max(1, (profiles.size() + rows - 1) / rows);
-		page = Math.min(page, pageCount - 1);
-		for (int i = page * rows; i < Math.min(profiles.size(), (page + 1) * rows); i++) {
+		int span = Math.min(900, width - 24), left = (width - span) / 2;
+		gridTop = 34;
+		int dockY = height - 54;
+		gridBottom = dockY - 12;
+		int gridWidth = span - 64, gridLeft = left + 32;
+		int columns = Math.clamp((gridWidth + CARD_GAP) / (MIN_CARD_WIDTH + CARD_GAP), 1, 3);
+		int gridHeight = Math.max(64, gridBottom - gridTop);
+		// Scale the original three-card proportions together, bounded by both available axes.
+		int cardWidth =
+				Math.min(
+						(gridWidth - (columns - 1) * CARD_GAP) / columns,
+						gridHeight * CARD_ASPECT_WIDTH / CARD_ASPECT_HEIGHT);
+		int cardHeight = cardWidth * CARD_ASPECT_HEIGHT / CARD_ASPECT_WIDTH;
+		int cardTop = gridTop + (gridHeight - cardHeight) / 2;
+		int perPage = columns;
+		pageCount = Math.max(1, Math.ceilDiv(profiles.size(), perPage));
+		page = Math.clamp(page, 0, pageCount - 1);
+		for (int i = page * perPage; i < Math.min(profiles.size(), (page + 1) * perPage); i++) {
 			var profile = profiles.get(i);
-			int index = i - page * rows;
-			int rowItems =
-					Math.min(columns, profiles.size() - page * rows - index / columns * columns);
-			int rowLeft = left + (span - (rowItems * cardWidth + (rowItems - 1) * 8)) / 2;
-			addRenderableWidget(
+			int index = i - page * perPage;
+			int rowItems = Math.min(columns, profiles.size() - page * perPage);
+			int rowLeft =
+					gridLeft + (gridWidth - (rowItems * cardWidth + (rowItems - 1) * CARD_GAP)) / 2;
+			var card =
 					new CharacterCard(
-							rowLeft + (index % columns) * (cardWidth + 8),
-							35 + (index / columns) * (cardHeight + 8),
+							rowLeft + index * (cardWidth + CARD_GAP),
+							cardTop,
 							cardWidth,
 							cardHeight,
-							profile));
-			if (!trash) {
+							profile);
+			addRenderableWidget(card);
+			if (!trash)
 				addRenderableWidget(
 						new StarButton(
-								rowLeft + (index % columns) * (cardWidth + 8) + cardWidth - 25,
-								42 + (index / columns) * (cardHeight + 8),
+								card.starX(),
+								card.starY(),
 								stars != null && stars.contains(profile.id().toString()),
 								() ->
 										run(
@@ -113,187 +135,192 @@ public final class CharacterSelectionScreen extends ProfileScreen {
 													page = 0;
 													rebuildWidgets();
 												})));
-			}
 		}
-		if (!trash) {
-			button(
-									left,
-									height - 86,
-									28,
-									Component.literal("◀"),
-									() -> {
-										clicks.reset();
-										page--;
-										rebuildWidgets();
-									})
-							.active =
-					page > 0;
-			button(
-									left + span - 28,
-									height - 86,
-									28,
-									Component.literal("▶"),
-									() -> {
-										clicks.reset();
-										page++;
-										rebuildWidgets();
-									})
-							.active =
-					page + 1 < pageCount;
-			button(
-					left + 36,
-					height - 86,
-					span - 72,
-					ClientProfiles.text("create"),
-					() -> minecraft.setScreen(new CharacterEditorScreen(this, null, null)));
-			int w = (span - 4) / 2;
-			var chosen = chosen();
-			button(left, height - 62, w, ClientProfiles.text("play"), this::confirmSelection)
-							.active =
-					chosen != null && chosen.status() == CharacterProfile.Status.ACTIVE;
-			button(
-									left + w + 4,
-									height - 62,
-									span - w - 4,
-									ClientProfiles.text("delete"),
-									() ->
-											minecraft.setScreen(
-													new ConfirmScreen(
-															ok -> {
-																if (ok)
-																	run(
-																			() -> {
-																				ClientProfiles
-																						.store()
-																						.archive(
-																								selected);
-																				minecraft.setScreen(
-																						this);
-																			});
-																else minecraft.setScreen(this);
-															},
-															ClientProfiles.text("delete.confirm"),
-															ClientProfiles.text("delete.help"))))
-							.active =
-					chosen != null;
-			boolean interrupted =
-					selected != null
-							&& Files.exists(
-									SessionCheckpoint.marker(ClientProfiles.store(), selected));
-			button(
-					left,
-					height - 38,
-					span / 2 - 2,
-					ClientProfiles.text(interrupted ? "recover.session" : "trash"),
-					() -> {
-						if (!interrupted)
-							minecraft.setScreen(new CharacterSelectionScreen(this, true));
-						else
-							minecraft.setScreen(
-									new ConfirmScreen(
-											ok -> {
-												if (ok)
-													run(
-															() -> {
-																SessionCheckpoint.recover(
-																		ClientProfiles.store(),
-																		selected,
-																		ClientProfiles.saves());
-																minecraft.setScreen(this);
-															});
-												else minecraft.setScreen(this);
-											},
-											ClientProfiles.text("recover.session"),
-											ClientProfiles.text("recover.help")));
-					});
-			if (!ClientProfiles.store().problems().isEmpty())
-				button(
-						width - 26,
-						8,
-						20,
-						Component.literal("!"),
-						() -> {
-							var first =
-									ClientProfiles.store().problems().entrySet().iterator().next();
-							minecraft.setScreen(
-									new ConfirmScreen(
-											ok -> {
-												if (ok)
-													run(
-															() -> {
-																ClientProfiles.store()
-																		.recover(first.getKey());
-																minecraft.setScreen(this);
-															});
-												else minecraft.setScreen(this);
-											},
-											ClientProfiles.text("recover.backup"),
-											Component.literal(
-													first.getKey() + ": " + first.getValue())));
-						});
-			button(
-					left + w + 4,
-					height - 38,
-					span - w - 4,
-					ClientProfiles.text("back"),
-					this::onClose);
+		int arrowY = cardTop + (cardHeight - 28) / 2;
+		var previous =
+				addRenderableWidget(
+						EditorUi.button(
+								left, arrowY, 24, 28, Component.literal("◀"), () -> turnPage(-1)));
+		previous.active = page > 0;
+		previous.setTooltip(Tooltip.create(ClientProfiles.text("characters.previous_page")));
+		var next =
+				addRenderableWidget(
+						EditorUi.button(
+								left + span - 24,
+								arrowY,
+								24,
+								28,
+								Component.literal("▶"),
+								() -> turnPage(1)));
+		next.active = page + 1 < pageCount;
+		next.setTooltip(Tooltip.create(ClientProfiles.text("characters.next_page")));
+		boolean interrupted =
+				selected != null
+						&& Files.exists(SessionCheckpoint.marker(ClientProfiles.store(), selected));
+		var profile = chosen();
+		var actions = new LinkedHashMap<String, ActionCarousel.Action>();
+		if (trash) {
+			actions.put(
+					"restore",
+					new ActionCarousel.Action(
+							"restore",
+							ClientProfiles.text("restore"),
+							ActionCarousel.Icon.RESTORE,
+							profile != null,
+							() ->
+									run(
+											() -> {
+												ClientProfiles.store().unarchive(selected);
+												clearSelection();
+												rebuildWidgets();
+											})));
+			actions.put(
+					"delete",
+					new ActionCarousel.Action(
+							"delete",
+							ClientProfiles.text("delete.permanent"),
+							ActionCarousel.Icon.DELETE,
+							profile != null,
+							this::confirmPermanentDelete));
 		} else {
-			if (pageCount > 1) {
-				button(
-										width / 2 - 72,
-										height - 62,
-										28,
-										Component.literal("◀"),
-										() -> {
-											clicks.reset();
-											page--;
-											rebuildWidgets();
-										})
-								.active =
-						page > 0;
-				button(
-										width / 2 + 44,
-										height - 62,
-										28,
-										Component.literal("▶"),
-										() -> {
-											clicks.reset();
-											page++;
-											rebuildWidgets();
-										})
-								.active =
-						page + 1 < pageCount;
-			}
-			int actionWidth = (span - 16) / 3;
-			button(
-									left,
-									height - 34,
-									actionWidth,
-									ClientProfiles.text("restore"),
-									() ->
-											run(
-													() -> {
-														ClientProfiles.store().unarchive(selected);
-														clearSelection();
-														rebuildWidgets();
-													}))
-							.active =
-					chosen() != null;
-			button(
-									left + actionWidth + 8,
-									height - 34,
-									actionWidth,
-									ClientProfiles.text("delete.permanent"),
-									this::confirmPermanentDelete)
-							.active =
-					chosen() != null;
-			button(
-					left + 2 * (actionWidth + 8),
-					height - 34,
-					span - 2 * (actionWidth + 8),
-					ClientProfiles.text("back"),
-					this::onClose);
+			actions.put(
+					"create",
+					new ActionCarousel.Action(
+							"create",
+							ClientProfiles.text("create"),
+							ActionCarousel.Icon.CREATE,
+							true,
+							() ->
+									minecraft.setScreen(
+											new CharacterEditorScreen(this, null, null))));
+			actions.put(
+					"play",
+					new ActionCarousel.Action(
+							"play",
+							ClientProfiles.text("play"),
+							ActionCarousel.Icon.PLAY,
+							profile != null && profile.status() == CharacterProfile.Status.ACTIVE,
+							this::confirmSelection));
+			actions.put(
+					"trash",
+					new ActionCarousel.Action(
+							"trash",
+							ClientProfiles.text("trash"),
+							ActionCarousel.Icon.TRASH,
+							true,
+							() -> minecraft.setScreen(new CharacterSelectionScreen(this, true))));
+			actions.put(
+					"delete",
+					new ActionCarousel.Action(
+							"delete",
+							ClientProfiles.text("delete"),
+							ActionCarousel.Icon.DELETE,
+							profile != null,
+							this::confirmArchive));
+			if (interrupted)
+				actions.put(
+						"recover",
+						new ActionCarousel.Action(
+								"recover",
+								ClientProfiles.text("recover.session"),
+								ActionCarousel.Icon.RECOVER,
+								true,
+								this::confirmRecovery));
 		}
+		actions.put(
+				"back",
+				new ActionCarousel.Action(
+						"back",
+						ClientProfiles.text("back"),
+						ActionCarousel.Icon.BACK,
+						true,
+						this::onClose));
+		if (selectedAction == null || !actions.containsKey(selectedAction))
+			selectedAction =
+					trash
+							? "restore"
+							: interrupted ? "recover" : profiles.isEmpty() ? "create" : "play";
+		actionCarousel =
+				addRenderableWidget(
+						new ActionCarousel(
+								left,
+								dockY,
+								span,
+								actions.values(),
+								selectedAction,
+								id -> selectedAction = id));
+		if (!trash && !ClientProfiles.store().problems().isEmpty())
+			button(width - 26, 8, 20, Component.literal("!"), this::confirmBackupRecovery);
+	}
+
+	private void turnPage(int direction) {
+		int next = Math.clamp(page + direction, 0, pageCount - 1);
+		if (next == page) return;
+		clicks.reset();
+		rotatingCharacter = null;
+		page = next;
+		rebuildWidgets();
+	}
+
+	private void confirmArchive() {
+		var profile = chosen();
+		if (trash || profile == null) return;
+		UUID id = profile.id();
+		minecraft.setScreen(
+				new ConfirmScreen(
+						ok -> {
+							if (ok)
+								run(
+										() -> {
+											ClientProfiles.store().archive(id);
+											clearSelection();
+											minecraft.setScreen(this);
+										});
+							else minecraft.setScreen(this);
+						},
+						ClientProfiles.text("delete.confirm"),
+						ClientProfiles.text("delete.help")));
+	}
+
+	private void confirmRecovery() {
+		var profile = chosen();
+		if (profile == null) return;
+		UUID id = profile.id();
+		minecraft.setScreen(
+				new ConfirmScreen(
+						ok -> {
+							if (ok)
+								run(
+										() -> {
+											SessionCheckpoint.recover(
+													ClientProfiles.store(),
+													id,
+													ClientProfiles.saves());
+											minecraft.setScreen(this);
+										});
+							else minecraft.setScreen(this);
+						},
+						ClientProfiles.text("recover.session"),
+						ClientProfiles.text("recover.help")));
+	}
+
+	private void confirmBackupRecovery() {
+		var problems = ClientProfiles.store().problems();
+		if (problems.isEmpty()) return;
+		var first = problems.entrySet().iterator().next();
+		minecraft.setScreen(
+				new ConfirmScreen(
+						ok -> {
+							if (ok)
+								run(
+										() -> {
+											ClientProfiles.store().recover(first.getKey());
+											minecraft.setScreen(this);
+										});
+							else minecraft.setScreen(this);
+						},
+						ClientProfiles.text("recover.backup"),
+						Component.literal(first.getKey() + ": " + first.getValue())));
 	}
 
 	private void clearSelection() {
@@ -323,6 +350,29 @@ public final class CharacterSelectionScreen extends ProfileScreen {
 						Component.translatable(
 								"terra_character.delete.permanent.confirm", profile.name()),
 						ClientProfiles.text("delete.permanent.help")));
+	}
+
+	@Override
+	public boolean mouseScrolled(double x, double y, double horizontal, double vertical) {
+		if (actionCarousel != null && actionCarousel.isMouseOver(x, y))
+			return actionCarousel.mouseScrolled(x, y, horizontal, vertical);
+		if (y >= gridTop && y < gridBottom) {
+			pageScroll += Math.clamp(vertical != 0 ? -vertical : horizontal, -4, 4);
+			int steps = (int) pageScroll;
+			pageScroll -= steps;
+			turnPage(steps);
+			return true;
+		}
+		return super.mouseScrolled(x, y, horizontal, vertical);
+	}
+
+	@Override
+	public boolean keyPressed(int key, int scan, int modifiers) {
+		if (key == GLFW.GLFW_KEY_PAGE_UP || key == GLFW.GLFW_KEY_PAGE_DOWN) {
+			turnPage(key == GLFW.GLFW_KEY_PAGE_UP ? -1 : 1);
+			return true;
+		}
+		return super.keyPressed(key, scan, modifiers);
 	}
 
 	@Override
@@ -471,11 +521,23 @@ public final class CharacterSelectionScreen extends ProfileScreen {
 		public boolean mouseClicked(double x, double y, int button) {
 			// The star is a separate focusable widget; do not consume its click as card selection.
 			if (!trash
-					&& x >= getX() + getWidth() - 25
-					&& x < getX() + getWidth() - 7
-					&& y >= getY() + 7
-					&& y < getY() + 25) return false;
+					&& x >= starX()
+					&& x < starX() + STAR_SIZE
+					&& y >= starY()
+					&& y < starY() + STAR_SIZE) return false;
 			return super.mouseClicked(x, y, button);
+		}
+
+		private int footerY() {
+			return getY() + getHeight() - FOOTER_HEIGHT - 8;
+		}
+
+		private int starX() {
+			return getX() + getWidth() - STAR_SIZE - 10;
+		}
+
+		private int starY() {
+			return footerY() + (FOOTER_HEIGHT - STAR_SIZE) / 2;
 		}
 
 		@Override
@@ -498,9 +560,9 @@ public final class CharacterSelectionScreen extends ProfileScreen {
 			int x = getX(), y = getY(), w = getWidth(), h = getHeight();
 			boolean chosen = profile.id().equals(selected);
 			EditorUi.frame(g, x, y, w, h, chosen, isHoveredOrFocused());
-			int footerHeight = 22, footerY = y + h - footerHeight - 8;
+			int footerY = footerY();
 			int modelTop = y + 10, modelBottom = footerY - 4;
-			EditorUi.row(g, x + 8, footerY, w - 16, footerHeight, chosen, false);
+			EditorUi.row(g, x + 8, footerY, w - 16, FOOTER_HEIGHT, chosen, false);
 			// Reserve matching side gutters for vitals, leaving the enlarged portrait unobstructed.
 			g.enableScissor(x + 30, modelTop, x + w - 30, modelBottom);
 			try {
@@ -528,13 +590,14 @@ public final class CharacterSelectionScreen extends ProfileScreen {
 			}
 			CharacterVitals.render(
 					g, summary, x + 10, x + w - 19, modelTop, modelBottom - modelTop);
-			EditorUi.text(g, getMessage(), x + 14, footerY + 2, w - 28, 9, EditorUi.TEXT, true);
+			int textWidth = w - (trash ? 28 : 50);
+			EditorUi.text(g, getMessage(), x + 14, footerY + 2, textWidth, 9, EditorUi.TEXT, true);
 			EditorUi.text(
 					g,
 					details,
 					x + 14,
 					footerY + 11,
-					w - 28,
+					textWidth,
 					9,
 					profile.status() == CharacterProfile.Status.DEAD ? 0xFFFF8888 : EditorUi.MUTED,
 					true);
@@ -544,14 +607,15 @@ public final class CharacterSelectionScreen extends ProfileScreen {
 	@Override
 	public void render(GuiGraphics g, int x, int y, float d) {
 		super.render(g, x, y, d);
-		if (trash && pageCount > 1)
+		keepTooltipOnScreen();
+		if (pageCount > 1)
 			EditorUi.text(
 					g,
 					Component.translatable("terra_character.page", page + 1, pageCount),
 					width / 2 - 40,
-					height - 58,
+					gridBottom + 1,
 					80,
-					12,
+					9,
 					EditorUi.MUTED,
 					true);
 		if (profiles.isEmpty())
@@ -564,5 +628,46 @@ public final class CharacterSelectionScreen extends ProfileScreen {
 					20,
 					EditorUi.MUTED,
 					true);
+	}
+
+	private void keepTooltipOnScreen() {
+		AbstractWidget target = null;
+		boolean keyboard = minecraft.getLastInputType().isKeyboard();
+		for (var child : children()) {
+			if (!(child instanceof AbstractWidget widget)
+					|| !widget.visible
+					|| widget.getTooltip() == null) continue;
+			if (keyboard && widget.isFocused()) {
+				target = widget;
+				break;
+			}
+			// Later widgets (such as the star) take precedence over the card underneath.
+			if (widget.isHovered()) target = widget;
+		}
+		if (target == null) return;
+		ClientTooltipPositioner delegate =
+				keyboard && !target.isHovered()
+						? new BelowOrAboveWidgetTooltipPositioner(target.getRectangle())
+						: new MenuTooltipPositioner(target.getRectangle());
+		setTooltipForNextRenderPass(
+				target.getTooltip(),
+				(screenWidth, screenHeight, mouseX, mouseY, tooltipWidth, tooltipHeight) -> {
+					var position =
+							delegate.positionTooltip(
+									screenWidth,
+									screenHeight,
+									mouseX,
+									mouseY,
+									tooltipWidth,
+									tooltipHeight);
+					// Include the tooltip background and border in the safe inset.
+					return new Vector2i(
+							Mth.clamp(position.x(), 5, Math.max(5, screenWidth - tooltipWidth - 5)),
+							Mth.clamp(
+									position.y(),
+									5,
+									Math.max(5, screenHeight - tooltipHeight - 5)));
+				},
+				true);
 	}
 }

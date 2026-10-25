@@ -19,6 +19,7 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
 import org.confluence.terra_character.TerraCharacter;
 import org.confluence.terra_character.api.model.*;
 import org.confluence.terra_character.client.*;
+import org.lwjgl.glfw.GLFW;
 
 import java.nio.file.*;
 import java.util.*;
@@ -29,6 +30,8 @@ import java.util.concurrent.CompletableFuture;
 public final class MenuSmokeTest {
 	private static final boolean POPUP_ONLY =
 			Boolean.parseBoolean(System.getenv("TERRA_CHARACTER_POPUP_ONLY"));
+	private static final boolean CAROUSEL_ONLY =
+			Boolean.parseBoolean(System.getenv("TERRA_CHARACTER_CAROUSEL_ONLY"));
 	private static int stage, delay, ticks;
 	private static boolean done;
 	private static CompletableFuture<Void> reload;
@@ -75,6 +78,16 @@ public final class MenuSmokeTest {
 					return;
 				}
 				setup();
+				if (CAROUSEL_ONLY)
+					for (int i = 0; i < 4; i++)
+						ClientProfiles.store()
+								.create(
+										new CharacterProfile(
+												UUID.randomUUID(),
+												"Carousel " + i,
+												CharacterDifficulty.SOFTCORE,
+												legacySkin(),
+												CharacterProfile.Status.ACTIVE));
 				mc.setScreen(new CharacterSelectionScreen(new TitleScreen()));
 				stage = 1;
 				delay = 0;
@@ -82,6 +95,15 @@ public final class MenuSmokeTest {
 				checkPortraits();
 				bounds();
 				shot("character-cards.png");
+				if (CAROUSEL_ONLY) {
+					verifyCarousel();
+					mc.getWindow().setWindowed(960, 720);
+					mc.options.guiScale().set(3);
+					mc.resizeDisplay();
+					stage = 16;
+					delay = 0;
+					return;
+				}
 				var card =
 						mc.screen.children().stream()
 								.filter(w -> w.getClass().getSimpleName().equals("CharacterCard"))
@@ -333,6 +355,17 @@ public final class MenuSmokeTest {
 				press("wardrobe.slot.hair");
 				stage = 15;
 				delay = 0;
+			} else if (stage == 16 && ++delay > 15) {
+				bounds();
+				verifyCarousel();
+				stage = 17;
+				delay = 0;
+			} else if (stage == 17 && ++delay > 15) {
+				shot("character-carousel-narrow.png");
+				finish(
+						"PASS: character carousel scroll and keyboard selection, no action on"
+							+ " scroll, disabled play, creation, character paging, bounds at"
+							+ " 640x400 and 320x240");
 			} else if (stage == 15 && ++delay > 15) {
 				bounds();
 				shot("highlight-narrow.png");
@@ -349,6 +382,59 @@ public final class MenuSmokeTest {
 			TerraCharacter.LOGGER.error("Menu smoke failed at {}", stage, ex);
 			finish("FAIL stage " + stage + ": " + ex);
 		}
+	}
+
+	private static void verifyCarousel() throws Exception {
+		var mc = Minecraft.getInstance();
+		var screen = mc.screen;
+		var carousel =
+				screen.children().stream()
+						.filter(c -> c.getClass().getSimpleName().equals("ActionCarousel"))
+						.map(AbstractWidget.class::cast)
+						.findFirst()
+						.orElseThrow();
+		var labels = new HashSet<String>();
+		int x = carousel.getX() + carousel.getWidth() / 2, y = carousel.getY() + 15;
+		for (int i = 0; i < 5; i++) {
+			labels.add(carousel.getMessage().getString());
+			screen.mouseScrolled(x, y, 0, -1);
+			require(mc.screen == screen, "Scrolling selects without executing functions");
+		}
+		require(
+				labels.equals(
+						Set.of(
+								ClientProfiles.text("create").getString(),
+								ClientProfiles.text("play").getString(),
+								ClientProfiles.text("trash").getString(),
+								ClientProfiles.text("delete").getString(),
+								ClientProfiles.text("back").getString())),
+				"All five functions available on the wheel");
+		screen.setFocused(carousel);
+		for (int i = 0;
+				i < 5
+						&& !carousel.getMessage()
+								.getString()
+								.equals(ClientProfiles.text("play").getString());
+				i++) carousel.keyPressed(GLFW.GLFW_KEY_RIGHT, 0, 0);
+		carousel.keyPressed(GLFW.GLFW_KEY_ENTER, 0, 0);
+		require(mc.screen == screen, "Play disabled before character selection");
+		carousel.keyPressed(GLFW.GLFW_KEY_LEFT, 0, 0);
+		carousel.keyPressed(GLFW.GLFW_KEY_ENTER, 0, 0);
+		require(mc.screen instanceof CharacterEditorScreen, "Center action can create a character");
+		mc.setScreen(screen);
+		var before = cardNames(screen);
+		screen.mouseScrolled(screen.width / 2D, 80, 0, -1);
+		require(!before.equals(cardNames(screen)), "Scrolling over characters changes page");
+		screen.mouseScrolled(screen.width / 2D, 80, 0, 1);
+		require(before.equals(cardNames(screen)), "Scrolling back restores character page");
+		bounds();
+	}
+
+	private static List<String> cardNames(Screen screen) {
+		return screen.children().stream()
+				.filter(c -> c.getClass().getSimpleName().equals("CharacterCard"))
+				.map(c -> ((AbstractWidget) c).getMessage().getString())
+				.toList();
 	}
 
 	private static void chooseColorIndex(int index) throws Exception {
@@ -692,6 +778,10 @@ public final class MenuSmokeTest {
 			for (int j = i + 1; j < widgets.size(); j++) {
 				var a = widgets.get(i);
 				var b = widgets.get(j);
+				if ((a instanceof StarButton
+								&& b.getClass().getSimpleName().equals("CharacterCard"))
+						|| (b instanceof StarButton
+								&& a.getClass().getSimpleName().equals("CharacterCard"))) continue;
 				require(
 						a.getX() + a.getWidth() <= b.getX()
 								|| b.getX() + b.getWidth() <= a.getX()

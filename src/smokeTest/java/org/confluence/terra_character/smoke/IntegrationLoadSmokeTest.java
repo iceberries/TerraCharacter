@@ -86,10 +86,13 @@ public final class IntegrationLoadSmokeTest {
 				var expected =
 						Set.of(
 										"mana",
+										"soul",
+										"soulcerer_skill",
 										"ever_beneficial",
 										"extra_inventory",
 										"piggy_bank",
 										"safe",
+										"void_vault",
 										"quests",
 										"world_quests",
 										"curios")
@@ -98,7 +101,8 @@ public final class IntegrationLoadSmokeTest {
 								.collect(Collectors.toSet());
 				require(
 						compatible.equals(expected),
-						"All eight legacy adapter identifiers preserved");
+						"Legacy adapter identifiers preserved and new character attachments"
+							+ " covered");
 				var legacy = new CompoundTag();
 				for (String id : expected) {
 					var entry = new CompoundTag();
@@ -134,7 +138,7 @@ public final class IntegrationLoadSmokeTest {
 			result =
 					"PASS: "
 							+ (confluence
-									? "built-in Confluence integration, eight adapters, client"
+									? "built-in Confluence integration, eleven adapters, client"
 											+ " hooks, conditional mixins and legacy adapter"
 											+ " envelopes"
 									: "standalone loading, optional integration disabled, no"
