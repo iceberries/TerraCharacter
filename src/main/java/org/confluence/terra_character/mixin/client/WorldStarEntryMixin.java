@@ -1,10 +1,14 @@
 package org.confluence.terra_character.mixin.client;
 
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Local;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.worldselection.WorldSelectionList;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.storage.LevelSummary;
 
 import org.confluence.terra_character.client.*;
@@ -20,6 +24,8 @@ public abstract class WorldStarEntryMixin implements WorldStarEntry {
 	@Shadow @Final private LevelSummary summary;
 	@Shadow @Final private Minecraft minecraft;
 	@Shadow private long lastClickTime;
+	@Unique private static final int STAR_SIZE = 18;
+	@Unique private static final int STAR_MARGIN = 5;
 	@Unique private WorldSelectionList terraCharacter$list;
 	@Unique private int terraCharacter$starX, terraCharacter$starY, terraCharacter$textWidth;
 	@Unique private boolean terraCharacter$rendered;
@@ -48,9 +54,12 @@ public abstract class WorldStarEntryMixin implements WorldStarEntry {
 			boolean hovered,
 			float delta,
 			CallbackInfo ci) {
-		terraCharacter$starX = left + width - 20;
-		terraCharacter$starY = top + 1;
-		terraCharacter$textWidth = Math.max(0, width - 60);
+		// Match AbstractSelectionList.renderSelection: the content's left is inset by two
+		// pixels, so left + width is not the right edge of the selection frame.
+		int rowRight = terraCharacter$list.getX() + (terraCharacter$list.getWidth() + width) / 2;
+		terraCharacter$starX = rowRight - STAR_MARGIN - STAR_SIZE;
+		terraCharacter$starY = top + Math.max(0, (height - STAR_SIZE) / 2);
+		terraCharacter$textWidth = Math.max(0, terraCharacter$starX - STAR_MARGIN - (left + 35));
 		terraCharacter$rendered = true;
 	}
 
@@ -64,6 +73,31 @@ public abstract class WorldStarEntryMixin implements WorldStarEntry {
 			index = 1)
 	private String fitText(String text) {
 		return minecraft.font.plainSubstrByWidth(text, terraCharacter$textWidth);
+	}
+
+	@WrapOperation(
+			method = "render",
+			at =
+					@At(
+							value = "INVOKE",
+							target =
+									"Lnet/minecraft/client/gui/GuiGraphics;drawString(Lnet/minecraft/client/gui/Font;Lnet/minecraft/network/chat/Component;IIIZ)I"))
+	private int fitInfo(
+			GuiGraphics g,
+			Font font,
+			Component text,
+			int x,
+			int y,
+			int color,
+			boolean shadow,
+			Operation<Integer> original) {
+		// Keep the styled version/difficulty information intact while reserving the button gutter.
+		g.enableScissor(x, y, x + terraCharacter$textWidth, y + font.lineHeight);
+		try {
+			return original.call(g, font, text, x, y, color, shadow);
+		} finally {
+			g.disableScissor();
+		}
 	}
 
 	@Inject(method = "render", at = @At("TAIL"))
@@ -97,10 +131,11 @@ public abstract class WorldStarEntryMixin implements WorldStarEntry {
 	@Unique
 	private boolean terraCharacter$inside(double x, double y) {
 		return terraCharacter$rendered
+				&& terraCharacter$list.isMouseOver(x, y)
 				&& x >= terraCharacter$starX
-				&& x < terraCharacter$starX + 18
+				&& x < terraCharacter$starX + STAR_SIZE
 				&& y >= terraCharacter$starY
-				&& y < terraCharacter$starY + 18;
+				&& y < terraCharacter$starY + STAR_SIZE;
 	}
 
 	@Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)

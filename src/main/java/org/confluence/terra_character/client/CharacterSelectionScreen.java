@@ -385,12 +385,7 @@ public final class CharacterSelectionScreen extends ProfileScreen {
 	private List<CardLine> cardLines(CharacterProfile profile, CharacterStatistics summary) {
 		var lines = new ArrayList<CardLine>();
 		lines.add(new CardLine(Component.literal(profile.name()), EditorUi.TEXT));
-		var info =
-				ModList.get().isLoaded("confluence")
-						? ClientProfiles.difficulty(profile.difficulty()).copy()
-						: Component.empty();
-		if (profile.status() == CharacterProfile.Status.DEAD)
-			info.append(ClientProfiles.text("dead"));
+		var info = profileInfo(profile);
 		if (!info.getString().isEmpty())
 			lines.add(
 					new CardLine(
@@ -422,6 +417,16 @@ public final class CharacterSelectionScreen extends ProfileScreen {
 		return List.copyOf(lines);
 	}
 
+	private static Component profileInfo(CharacterProfile profile) {
+		var info =
+				ModList.get().isLoaded("confluence")
+						? ClientProfiles.difficulty(profile.difficulty()).copy()
+						: Component.empty();
+		if (profile.status() == CharacterProfile.Status.DEAD)
+			info.append(ClientProfiles.text("dead"));
+		return info;
+	}
+
 	private static String number(float value) {
 		return value == Math.floor(value)
 				? String.format(Locale.ROOT, "%.0f", value)
@@ -432,6 +437,8 @@ public final class CharacterSelectionScreen extends ProfileScreen {
 		private final CharacterProfile profile;
 		private CharacterPortraits.PreviewPlayer portrait;
 		private final List<CardLine> lines;
+		private final CharacterStatistics summary;
+		private final Component details;
 
 		CharacterCard(int x, int y, int w, int h, CharacterProfile profile) {
 			super(x, y, w, h, Component.literal(profile.name()));
@@ -447,10 +454,13 @@ public final class CharacterSelectionScreen extends ProfileScreen {
 			} catch (Exception ex) {
 				TerraCharacter.LOGGER.warn("Cannot load character card {}", profile.id(), ex);
 			}
-			lines =
-					cardLines(
-							profile,
-							statistics.getOrDefault(profile.id(), CharacterStatistics.DEFAULT));
+			summary = statistics.getOrDefault(profile.id(), CharacterStatistics.DEFAULT);
+			lines = cardLines(profile, summary);
+			var info = profileInfo(profile);
+			details =
+					Component.literal(
+							(info.getString().isEmpty() ? "" : info.getString() + " · ")
+									+ CharacterPlayTime.format(summary.playTicks()));
 			var tooltip = Component.empty();
 			for (var line : lines) tooltip.append(line.text()).append("\n");
 			tooltip.append(ClientProfiles.text("characters.rotate"));
@@ -488,16 +498,20 @@ public final class CharacterSelectionScreen extends ProfileScreen {
 			int x = getX(), y = getY(), w = getWidth(), h = getHeight();
 			boolean chosen = profile.id().equals(selected);
 			EditorUi.frame(g, x, y, w, h, chosen, isHoveredOrFocused());
-			int footerHeight = lines.size() * 11 + 12, modelBottom = y + h - footerHeight - 4;
-			EditorUi.row(g, x + 8, y + h - footerHeight, w - 16, footerHeight - 8, chosen, false);
-			g.enableScissor(x + 8, y + 8, x + w - 8, modelBottom);
+			int footerHeight = 22, footerY = y + h - footerHeight - 8;
+			int modelTop = y + 10, modelBottom = footerY - 4;
+			EditorUi.row(g, x + 8, footerY, w - 16, footerHeight, chosen, false);
+			// Reserve matching side gutters for vitals, leaving the enlarged portrait unobstructed.
+			g.enableScissor(x + 30, modelTop, x + w - 30, modelBottom);
 			try {
 				int scale =
 						Math.max(
 								1,
 								Math.min(
-										43,
-										Math.min((h - footerHeight - 16) / 2, (w - 20) * 10 / 13)));
+										96,
+										Math.min(
+												(int) ((modelBottom - modelTop) / 2.1F),
+												(w - 60) * 10 / 13)));
 				float yaw = rotations.getOrDefault(profile.id(), 0f);
 				if (portrait != null)
 					CharacterPortraits.render(g, portrait, x + w / 2, modelBottom, scale, yaw);
@@ -512,18 +526,18 @@ public final class CharacterSelectionScreen extends ProfileScreen {
 			} finally {
 				g.disableScissor();
 			}
-			for (int i = 0; i < lines.size(); i++) {
-				var line = lines.get(i);
-				EditorUi.text(
-						g,
-						line.text(),
-						x + 14,
-						y + h - footerHeight + 2 + i * 11,
-						w - 28,
-						10,
-						line.color(),
-						true);
-			}
+			CharacterVitals.render(
+					g, summary, x + 10, x + w - 19, modelTop, modelBottom - modelTop);
+			EditorUi.text(g, getMessage(), x + 14, footerY + 2, w - 28, 9, EditorUi.TEXT, true);
+			EditorUi.text(
+					g,
+					details,
+					x + 14,
+					footerY + 11,
+					w - 28,
+					9,
+					profile.status() == CharacterProfile.Status.DEAD ? 0xFFFF8888 : EditorUi.MUTED,
+					true);
 		}
 	}
 

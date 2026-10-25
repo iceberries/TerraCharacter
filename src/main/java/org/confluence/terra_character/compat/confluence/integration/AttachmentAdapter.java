@@ -8,21 +8,27 @@ import net.neoforged.neoforge.attachment.AttachmentType;
 import net.neoforged.neoforge.common.util.INBTSerializable;
 
 import org.confluence.mod.common.attachment.*;
-import org.confluence.mod.common.item.common.EverBeneficialItem;
+import org.confluence.mod.common.item.common.PermanentUpgrade;
 import org.confluence.mod.util.PlayerUtils;
 import org.confluence.terra_character.api.integration.CharacterDataAdapter;
 import org.confluence.terra_character.compat.confluence.mixin.ManaMixin;
 
 import java.util.*;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 public final class AttachmentAdapter<T extends INBTSerializable<CompoundTag>>
 		implements CharacterDataAdapter {
 	private final String name;
 	private final Supplier<AttachmentType<T>> type;
-	private final Supplier<T> fresh;
+	private final Function<ServerPlayer, T> fresh;
 
 	public AttachmentAdapter(String name, Supplier<AttachmentType<T>> type, Supplier<T> fresh) {
+		this(name, type, player -> fresh.get());
+	}
+
+	public AttachmentAdapter(
+			String name, Supplier<AttachmentType<T>> type, Function<ServerPlayer, T> fresh) {
 		this.name = name;
 		this.type = type;
 		this.fresh = fresh;
@@ -50,12 +56,12 @@ public final class AttachmentAdapter<T extends INBTSerializable<CompoundTag>>
 
 	@Override
 	public void initialize(ServerPlayer player) {
-		player.setData(type.get(), fresh.get());
+		player.setData(type.get(), fresh.apply(player));
 	}
 
 	@Override
 	public void restore(ServerPlayer player, CompoundTag data, int version) {
-		var value = fresh.get();
+		var value = fresh.apply(player);
 		value.deserializeNBT(player.registryAccess(), data.copy());
 		player.setData(type.get(), value);
 		if (value instanceof ManaStorage)
@@ -110,16 +116,8 @@ public final class AttachmentAdapter<T extends INBTSerializable<CompoundTag>>
 
 	@Override
 	public void afterRestore(ServerPlayer player) {
-		if (player.getData(type.get()) instanceof EverBeneficial ever) {
-			EverBeneficialItem.LIFE_CRYSTAL.recovery(
-					ever, e -> e.getUsedLifeCrystals() != 0, player);
-			EverBeneficialItem.LIFE_FRUITS.recovery(ever, e -> e.getUsedLifeFruits() > 0, player);
-			EverBeneficialItem.AEGIS_APPLE.recovery(ever, EverBeneficial::isAegisAppleUsed, player);
-			EverBeneficialItem.AMBROSIA.recovery(ever, EverBeneficial::isAmbrosiaUsed, player);
-			EverBeneficialItem.GALAXY_PEARL.recovery(
-					ever, EverBeneficial::isGalaxyPearlUsed, player);
-			EverBeneficialItem.ARTISAN_LOAF.recovery(
-					ever, EverBeneficial::isArtisanLoafUsed, player);
+		if (player.getData(type.get()) instanceof EverBeneficial) {
+			PermanentUpgrade.restore(player);
 		}
 		if (name.equals("mana")) {
 			PlayerUtils.flushPrimitiveValueData(player);
