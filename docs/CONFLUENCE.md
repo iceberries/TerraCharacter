@@ -8,6 +8,8 @@
 
 单人内置服务器异常断开时返回人物选择页，保留原始断开详情；实际多人连接继续沿用服务器列表。若存档保护检查中止会话，最后有效人物存档保留，存在恢复标记时应从人物选择页恢复会话，不自动回滚正在使用的世界。
 
+初始物品统一沿用主模组 `confluence:achievements/new_world` 的奖励入口，领取判定改为人物侧。`terra_character_confluence:quests` 的 `InitialItemsGranted` 随人物、客户端联机快照及死亡复制保存，适配器 ID 和版本保持不变。首次完成仍执行原版奖励与主模组成就事件；已领取的人物在其他世界完成该成就时，只更新当地成就显示，不再重复执行奖励或初始物品事件，不逐件检查、删除背包物品。其他成就进度仍按人物与世界保存。旧人物已有该适配器但缺少新字段时按已领取迁移，避免升级后补发；新人物首次保存明确写入 false，真正领取后改为 true。未启用独立人物会话时保持主模组原行为。
+
 兼容代码的 Java 包为 `org.confluence.terra_character.compat.confluence`，其下包含 `client`、`integration`、`world` 和 `mixin`。Java 包名与持久化命名空间分离：旧适配器 ID、世界选项键、资源翻译键及旧兼容模组的冲突检查均保持原样。反射启动入口和 Mixin 配置指向新包，旧包不再包含实现类。
 
 兼容入口在检测到 `confluence` 后才通过延迟加载调用。兼容类不再使用自动事件订阅注解；公共监听器由入口注册，客户端监听器和预览能力仅在物理客户端注册。Mixin 配置使用独立插件，在模组发现阶段依据 Confluence 的存在决定是否应用，缺少汇流时不解析其目标类。
@@ -24,6 +26,10 @@
 .\gradlew.bat :TerraCharacter:runClient -PwithConfluence=true -PintegrationSmoke=true --offline --no-daemon
 # 仅验证单人进入、三项新增数据的保存恢复和断开返回，使用独立临时世界
 .\gradlew.bat :TerraCharacter:runClient -PwithConfluence=true -PlocalSessionSmoke=true --offline --no-daemon
+# 仅检查初始奖励：新人物、换世界、人物保存、旧存档迁移和死亡复制
+$env:TERRA_CHARACTER_INITIAL_ITEMS_ONLY = 'true'
+.\gradlew.bat :TerraCharacter:runClient -PwithConfluence=true -PlocalSessionSmoke=true --offline --no-daemon
+Remove-Item Env:TERRA_CHARACTER_INITIAL_ITEMS_ONLY
 # 相关单元测试与发行包
 .\gradlew.bat :TerraCharacter:test --tests '*ConfluenceWorldOptionsTest' :TerraCharacter:jar --offline
 ```

@@ -8,6 +8,8 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.PlayerAdvancements;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.Difficulty;
 import net.minecraft.world.item.ItemStack;
@@ -18,14 +20,18 @@ import net.minecraft.world.level.LevelSettings;
 import net.minecraft.world.level.WorldDataConfiguration;
 import net.minecraft.world.level.levelgen.WorldOptions;
 import net.minecraft.world.level.levelgen.presets.WorldPresets;
+import net.minecraft.world.level.storage.LevelResource;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.neoforged.neoforge.event.entity.player.AdvancementEvent;
 
+import org.confluence.mod.common.attachment.PlayerSpecialData;
 import org.confluence.terra_character.TerraCharacter;
 import org.confluence.terra_character.api.model.*;
 import org.confluence.terra_character.client.*;
+import org.confluence.terra_character.compat.confluence.integration.InitialItemsState;
 import org.confluence.terra_character.integration.AdapterRegistry;
 import org.confluence.terra_character.runtime.CharacterSession;
 
@@ -38,10 +44,26 @@ import java.util.concurrent.CompletableFuture;
 @EventBusSubscriber(modid = TerraCharacter.MODID, value = Dist.CLIENT)
 public final class LocalSessionSmokeTest {
 	private static final long START = System.currentTimeMillis();
+	private static final boolean INITIAL_ITEMS_ONLY =
+			"true".equals(System.getenv("TERRA_CHARACTER_INITIAL_ITEMS_ONLY"));
 	private static int phase, ticks;
 	private static boolean done;
 	private static UUID identity;
 	private static CompletableFuture<Void> check;
+	private static int initialAwards;
+	private static boolean checkingInitialItems;
+
+	@SubscribeEvent
+	public static void initialAward(AdvancementEvent.AdvancementEarnEvent event) {
+		if (!checkingInitialItems) return;
+		var session = CharacterSession.of(event.getEntity());
+		if (session != null
+				&& session.profile().id().equals(identity)
+				&& event.getAdvancement()
+						.id()
+						.equals(ResourceLocation.parse("confluence:achievements/new_world")))
+			initialAwards++;
+	}
 
 	@SubscribeEvent
 	public static void tick(ClientTickEvent.Post event) {
@@ -78,6 +100,7 @@ public final class LocalSessionSmokeTest {
 								CharacterProfile.Status.ACTIVE);
 				ClientProfiles.store().create(profile);
 				ClientProfiles.setSelected(identity);
+				mc.options.pauseOnLostFocus = false;
 				var world =
 						new WorldProfile(
 								UUID.randomUUID(),
@@ -132,7 +155,16 @@ public final class LocalSessionSmokeTest {
 				phase = 2;
 			} else if (phase == 2 && check.isDone()) {
 				check.join();
+				if (INITIAL_ITEMS_ONLY) {
+					finish(
+							mc,
+							"PASS: initial rewards once per character across fresh worlds, separate"
+								+ " characters, portable save, legacy migration and death copy",
+							null);
+					return;
+				}
 				phase = 3;
+				mc.setScreen(null);
 				mc.getConnection()
 						.getConnection()
 						.disconnect(Component.literal("Local disconnect regression"));
@@ -157,7 +189,7 @@ public final class LocalSessionSmokeTest {
 										() ->
 												new AssertionError(
 														"Local disconnect must offer character"
-															+ " selection"));
+																+ " selection"));
 				back.onPress();
 				require(
 						mc.screen instanceof CharacterSelectionScreen,
@@ -165,7 +197,8 @@ public final class LocalSessionSmokeTest {
 				finish(
 						mc,
 						"PASS: singleplayer join/save, soul/skills/void-vault roundtrip, local"
-							+ " disconnect return",
+								+ " disconnect return, initial rewards once per character across"
+								+ " worlds",
 						null);
 			}
 		} catch (Throwable ex) {
@@ -176,6 +209,18 @@ public final class LocalSessionSmokeTest {
 	private static void verify(ServerPlayer player) throws Exception {
 		var session = CharacterSession.of(player);
 		require(session != null && !session.failed(), "Character session joined successfully");
+		verifyInitialItems(player);
+		if (INITIAL_ITEMS_ONLY) {
+			session.save(player);
+			var saved = ClientProfiles.store().read(identity);
+			require(
+					saved.getCompound("Adapters")
+							.getCompound("terra_character_confluence:quests")
+							.getCompound("Data")
+							.getBoolean(InitialItemsState.NBT_KEY),
+					"Committed character keeps the initial-reward receipt");
+			return;
+		}
 		for (String name : new String[] {"soul", "soulcerer_skill", "void_vault"}) {
 			var adapter =
 					AdapterRegistry.all().stream()
@@ -210,6 +255,96 @@ public final class LocalSessionSmokeTest {
 			require(
 					document.getCompound("Adapters").contains("terra_character_confluence:" + name),
 					"Saved adapter " + name);
+	}
+
+	private static void verifyInitialItems(ServerPlayer player) throws Exception {
+		var adapter =
+				AdapterRegistry.all().stream()
+						.filter(a -> a.id().toString().equals("terra_character_confluence:quests"))
+						.findFirst()
+						.orElseThrow();
+		var original = adapter.capture(player);
+		require(
+				original.getBoolean(InitialItemsState.NBT_KEY),
+				"Fresh world's welcome reward was recorded on the character");
+		checkingInitialItems = true;
+		initialAwards = 0;
+		try {
+			adapter.initialize(player);
+			require(
+					!adapter.capture(player).getBoolean(InitialItemsState.NBT_KEY),
+					"New character starts unclaimed");
+			awardInFreshWorld(player);
+			require(initialAwards == 1, "First world runs the original initial-reward event once");
+			var characterA = adapter.capture(player);
+			require(
+					characterA.getBoolean(InitialItemsState.NBT_KEY),
+					"Receipt is part of the portable character adapter");
+			adapter.initialize(player);
+			adapter.restore(player, characterA, 1);
+			awardInFreshWorld(player);
+			require(
+					initialAwards == 1,
+					"Restored character entering a new world does not replay initial rewards");
+			adapter.initialize(player);
+			awardInFreshWorld(player);
+			require(
+					initialAwards == 2,
+					"Another fresh character still receives its own initial reward");
+			adapter.restore(player, characterA, 1);
+			var clone = new PlayerSpecialData();
+			clone.deserializeNBT(
+					player.registryAccess(),
+					PlayerSpecialData.of(player).serializeNBT(player.registryAccess()));
+			require(
+					((InitialItemsState) clone).terraCharacter$hasInitialItems(),
+					"Death-copy serialization preserves the receipt");
+			var legacy = characterA.copy();
+			legacy.remove(InitialItemsState.NBT_KEY);
+			adapter.restore(player, legacy, 1);
+			awardInFreshWorld(player);
+			require(
+					initialAwards == 2,
+					"Legacy character without the new field does not receive a duplicate upgrade"
+							+ " gift");
+			var unclaimed = characterA.copy();
+			unclaimed.putBoolean(InitialItemsState.NBT_KEY, false);
+			adapter.restore(player, unclaimed, 1);
+			awardInFreshWorld(player);
+			require(
+					initialAwards == 3,
+					"Explicit unclaimed state survives saving before the first reward");
+		} finally {
+			checkingInitialItems = false;
+			adapter.restore(player, original, 1);
+		}
+	}
+
+	private static void awardInFreshWorld(ServerPlayer player) {
+		var server = player.server;
+		var advancement =
+				server.getAdvancements()
+						.get(ResourceLocation.parse("confluence:achievements/new_world"));
+		require(advancement != null, "Main mod's actual initial-reward advancement exists");
+		var progress =
+				new PlayerAdvancements(
+						server.getFixerUpper(),
+						server.getPlayerList(),
+						server.getAdvancements(),
+						server.getWorldPath(LevelResource.ROOT)
+								.resolve("initial-reward-" + UUID.randomUUID() + ".json"),
+						player);
+		try {
+			for (String criterion : advancement.value().criteria().keySet())
+				progress.award(advancement, criterion);
+			require(
+					progress.getOrStartProgress(advancement).isDone(),
+					"New world's advancement still completes for the UI");
+			for (String criterion : advancement.value().criteria().keySet())
+				progress.award(advancement, criterion);
+		} finally {
+			progress.stopListening();
+		}
 	}
 
 	private static void finish(Minecraft mc, String result, Throwable error) {

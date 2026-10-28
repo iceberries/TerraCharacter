@@ -38,7 +38,7 @@ public final class SpecialDataAdapter implements CharacterDataAdapter {
 		return VanillaDataAdapter.select(
 				tag,
 				scope == Scope.CHARACTER
-						? List.of("AnglerQuestCount")
+						? List.of("AnglerQuestCount", InitialItemsState.NBT_KEY)
 						: List.of("CompletedAnglerQuestDay"));
 	}
 
@@ -52,6 +52,10 @@ public final class SpecialDataAdapter implements CharacterDataAdapter {
 		var state = PlayerSpecialData.of(player);
 		var base = state.serializeNBT(player.registryAccess());
 		base.merge(select(data));
+		// Existing character snapshots predate the receipt and have already entered the game.
+		// New snapshots always store an explicit false until the first completed welcome reward.
+		if (scope == Scope.CHARACTER && !data.contains(InitialItemsState.NBT_KEY))
+			base.putBoolean(InitialItemsState.NBT_KEY, true);
 		state.deserializeNBT(player.registryAccess(), base);
 		state.removeCurrentQuestedFish();
 	}
