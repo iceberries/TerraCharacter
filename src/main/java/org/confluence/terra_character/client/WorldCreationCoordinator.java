@@ -22,8 +22,10 @@ public final class WorldCreationCoordinator {
 		var state = screen.getUiState();
 		if (state.isDebug())
 			throw new IOException("Debug worlds do not support character sessions");
+		// Resolve vanilla's nullable default before changing mode (creative defaults to cheats on).
+		boolean allowCommands = state.isAllowCommands();
 		state.setGameMode(WorldCreationUiState.SelectedGameMode.SURVIVAL);
-		state.setAllowCommands(false);
+		state.setAllowCommands(allowCommands);
 		String preset =
 				state.getWorldType().preset() == null
 						? "minecraft:normal"
