@@ -1,4 +1,5 @@
 {
+  "terra_character.compatibility.deferred": "Some character data could not be loaded. The original data was kept. Changes to affected mod containers will not be saved in this session.",
   "terra_character.skin.account.loading": "Loading account skin…",
   "terra_character.skin.account.ready": "Account skin ready",
   "terra_character.skin.account.fallback": "Cached or vanilla skin",

@@ -23,6 +23,9 @@ public final class VanillaDataAdapter implements CharacterDataAdapter {
 			List.of(
 					"Inventory",
 					"EnderItems",
+					PortableInventory.DEFERRED,
+					PortableRecipes.DEFERRED,
+					PortableEffects.DEFERRED,
 					"SelectedItemSlot",
 					"XpP",
 					"XpLevel",
@@ -89,12 +92,9 @@ public final class VanillaDataAdapter implements CharacterDataAdapter {
 		player.load(payload.copy());
 	}
 
-	/**
-	 * Vanilla would otherwise silently discard missing recipes or move a missing dimension to the
-	 * overworld.
-	 */
-	public static void validateReferences(
-			ServerPlayer player, CompoundTag portable, CompoundTag local) throws IOException {
+	/** Prevents vanilla from silently moving a character in a missing dimension to the overworld. */
+	public static void validateWorldDimensions(ServerPlayer player, CompoundTag local)
+			throws IOException {
 		for (String key : List.of("Dimension", "SpawnDimension"))
 			if (local.contains(key)) {
 				var id = ResourceLocation.tryParse(local.getString(key));
@@ -104,6 +104,12 @@ public final class VanillaDataAdapter implements CharacterDataAdapter {
 					throw new IOException(
 							"Missing character world dimension: " + local.getString(key));
 			}
+	}
+
+	/** Strict reference check for callers that require all recipes to be available. */
+	public static void validateReferences(ServerPlayer player, CompoundTag portable, CompoundTag local)
+			throws IOException {
+		validateWorldDimensions(player, local);
 		var recipes = portable.getCompound("recipeBook");
 		for (String key : List.of("recipes", "toBeDisplayed"))
 			for (var tag : recipes.getList(key, Tag.TAG_STRING)) {

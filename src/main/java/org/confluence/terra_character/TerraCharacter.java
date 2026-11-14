@@ -8,6 +8,8 @@ import org.confluence.terra_character.api.integration.CharacterDataAdapter;
 import org.confluence.terra_character.integration.AdapterRegistry;
 import org.confluence.terra_character.integration.ConfluenceCompatibility;
 import org.confluence.terra_character.integration.VanillaDataAdapter;
+import org.confluence.terra_character.integration.PlayerAttributesAdapter;
+import org.confluence.terra_character.integration.PlayerPersistentStateAdapter;
 import org.confluence.terra_character.network.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,6 +24,8 @@ public final class TerraCharacter {
 		AdapterRegistry.register(
 				new VanillaDataAdapter(CharacterDataAdapter.Scope.CHARACTER_WORLD));
 		ConfluenceCompatibility.initialize(bus);
+		AdapterRegistry.register(new PlayerAttributesAdapter());
+		AdapterRegistry.register(new PlayerPersistentStateAdapter());
 		bus.addListener(
 				(RegisterPayloadHandlersEvent event) -> {
 					var registrar = event.registrar("8").optional();

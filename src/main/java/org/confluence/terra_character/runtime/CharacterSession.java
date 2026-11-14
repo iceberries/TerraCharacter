@@ -3,6 +3,7 @@ package org.confluence.terra_character.runtime;
 import net.minecraft.nbt.*;
 import net.minecraft.network.Connection;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
@@ -25,6 +26,7 @@ import org.confluence.terra_character.storage.*;
 import org.confluence.terra_character.storage.CharacterStore;
 
 import java.io.IOException;
+import java.io.File;
 import java.nio.file.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -45,6 +47,11 @@ public final class CharacterSession {
 	private final UUID account;
 	private final Connection connection;
 	private final CharacterPlayTime playTime;
+	private final Set<String> deferredAdapters = new HashSet<>();
+	private CompoundTag deferredItems = new CompoundTag();
+	private CompoundTag deferredRecipes = new CompoundTag();
+	private CompoundTag deferredEffects = new CompoundTag();
+	private ListTag deferredAttributes = new ListTag();
 	private boolean shared;
 	private UUID transferToken;
 
@@ -67,7 +74,8 @@ public final class CharacterSession {
 		var portable = document.getCompound("Adapters");
 		for (var adapter : AdapterRegistry.all())
 			if (adapter.scope() == CharacterDataAdapter.Scope.CHARACTER
-					&& !AdapterRegistry.envelope(adapter, adapter.capture(player))
+					&& !deferredAdapters.contains(adapter.id().toString())
+					&& !AdapterRegistry.envelope(adapter, capture(player, adapter))
 							.equals(portable.getCompound(adapter.id().toString()))) {
 				save(player);
 				return;
@@ -122,11 +130,7 @@ public final class CharacterSession {
 					|| Files.exists(store.directory(character).resolve("dead.nbt")))
 				throw new IOException("Character is unavailable");
 			new LaunchSelection(ProfileCodec.character(document.getCompound("Profile")), world);
-			AdapterRegistry.validate(document.getCompound("Adapters"));
 			AdapterRegistry.validateWorld(world.settings());
-			for (String key : document.getCompound("Worlds").getAllKeys())
-				AdapterRegistry.validate(document.getCompound("Worlds").getCompound(key));
-			DataIntegrity.validate(document, null);
 			if (Files.exists(WorldStore.directory(directory).resolve("session.nbt")))
 				throw new IOException(
 						"This world has an interrupted character session; recover that character"
@@ -201,6 +205,16 @@ public final class CharacterSession {
 		return session != null && session.server == sp.server ? session : null;
 	}
 
+	public static File cosmeticArmorFile(MinecraftServer server, UUID account) throws IOException {
+		var session = remotes.get(account);
+		if (session == null) {
+			var owner = server.getSingleplayerProfile();
+			if (owner != null && account.equals(owner.getId())) session = active;
+		}
+		return session != null && session.server == server
+				? session.progressPath("cosmetic_armor", ".dat").toFile() : null;
+	}
+
 	public static synchronized void prepareRemote(
 			MinecraftServer server, UUID account, CompoundTag portable, Connection connection)
 			throws IOException {
@@ -226,7 +240,6 @@ public final class CharacterSession {
 																		.name()))));
 		var store = RemoteCharacters.store(server.getServerDirectory(), account);
 		var metadata = RemoteCharacters.metadata(portable.getCompound("Profile"));
-		DataIntegrity.validate(portable, server.registryAccess());
 		var lock = RemoteCharacters.prepare(store, portable);
 		try {
 			var request = new LaunchRequest(store, metadata.id(), directory, world, lock);
@@ -368,17 +381,27 @@ public final class CharacterSession {
 	public CompoundTag load(ServerPlayer player) throws IOException {
 		var portable = document.getCompound("Adapters");
 		var local = document.getCompound("Worlds").getCompound(world.id().toString());
-		AdapterRegistry.validate(portable);
-		AdapterRegistry.validate(local);
-		DataIntegrity.validate(portable, player.registryAccess());
-		DataIntegrity.validate(local, player.registryAccess());
 		var base =
 				VanillaDataAdapter.select(
 						player.saveWithoutId(new CompoundTag()), VanillaDataAdapter.WORLD_KEYS);
-		var vanilla = portable.getCompound(VanillaDataAdapter.PORTABLE).getCompound("Data");
-		var location = local.getCompound(VanillaDataAdapter.LOCAL).getCompound("Data");
-		VanillaDataAdapter.validateReferences(player, vanilla, location);
-		base.merge(vanilla.copy());
+		var vanilla = vanillaData(portable, VanillaDataAdapter.PORTABLE);
+		var location = vanillaData(local, VanillaDataAdapter.LOCAL);
+		if (!VanillaDataAdapter.CHARACTER_KEYS.containsAll(vanilla.getAllKeys())
+				|| location.getAllKeys().stream().anyMatch(
+						key -> !key.equals("NeedsRespawn") && !VanillaDataAdapter.WORLD_KEYS.contains(key)))
+			throw new IOException("Unexpected core character fields");
+		VanillaDataAdapter.validateWorldDimensions(player, location);
+		deferredItems = PortableInventory.prepare(vanilla, player.registryAccess());
+		deferredEffects = PortableEffects.prepare(vanilla, player.registryAccess());
+		deferredRecipes = PortableRecipes.prepare(vanilla, key -> {
+			var id = ResourceLocation.tryParse(key);
+			return id != null && player.server.getRecipeManager().byKey(id).isPresent();
+		});
+		var vanillaWithoutItems = vanilla.copy();
+		vanillaWithoutItems.remove("Inventory");
+		vanillaWithoutItems.remove("EnderItems");
+		DataIntegrity.validate(vanillaWithoutItems, player.registryAccess());
+		base.merge(vanilla);
 		if (!location.getBoolean("NeedsRespawn")) base.merge(location.copy());
 		else {
 			for (String key : VanillaDataAdapter.WORLD_KEYS)
@@ -407,18 +430,61 @@ public final class CharacterSession {
 		for (var adapter : AdapterRegistry.all()) {
 			if (adapter instanceof VanillaDataAdapter) continue;
 			var group = adapter.scope() == CharacterDataAdapter.Scope.CHARACTER ? portable : local;
-			if (group.contains(adapter.id().toString())) {
-				var entry = group.getCompound(adapter.id().toString());
-				adapter.restore(player, entry.getCompound("Data").copy(), entry.getInt("Version"));
+			String id = adapter.id().toString();
+			if (!group.contains(id)) continue;
+			var entry = group.getCompound(id);
+			try {
+				int version = entry.getInt("Version");
+				var data = entry.getCompound("Data").copy();
+				if (version != adapter.schemaVersion()) {
+					if (version > adapter.schemaVersion())
+						throw new IOException("Newer adapter schema: " + version);
+					data = adapter.migrate(player, data, version)
+							.orElseThrow(() -> new IOException("No migration for schema " + version));
+				}
+				DataIntegrity.validate(data, player.registryAccess());
+				if (adapter instanceof PlayerAttributesAdapter attributes)
+					deferredAttributes = attributes.deferUnavailable(player, data);
+				adapter.restore(player, data, adapter.schemaVersion());
+			} catch (IOException | RuntimeException | LinkageError ex) {
+				adapter.initialize(player);
+				deferredAdapters.add(id);
+				TerraCharacter.LOGGER.warn("Preserving incompatible character data for adapter {}", id, ex);
 			}
 		}
 		return base;
 	}
 
+	private static CompoundTag vanillaData(CompoundTag group, String id) throws IOException {
+		if (!group.contains(id)) return new CompoundTag();
+		var entry = group.getCompound(id);
+		if (entry.getInt("Version") != 1)
+			throw new IOException("Unsupported core character schema: " + id);
+		return entry.getCompound("Data").copy();
+	}
+
+	boolean isAdapterActive(CharacterDataAdapter adapter) {
+		return !deferredAdapters.contains(adapter.id().toString());
+	}
+
+	private CompoundTag capture(ServerPlayer player, CharacterDataAdapter adapter) {
+		var data = adapter.capture(player);
+		if (adapter.id().toString().equals(VanillaDataAdapter.PORTABLE)) {
+			if (!deferredItems.isEmpty()) data.put(PortableInventory.DEFERRED, deferredItems.copy());
+			if (!deferredRecipes.isEmpty()) data.put(PortableRecipes.DEFERRED, deferredRecipes.copy());
+			if (!deferredEffects.isEmpty() && !player.isDeadOrDying())
+				data.put(PortableEffects.DEFERRED, deferredEffects.copy());
+		}
+		if (adapter instanceof PlayerAttributesAdapter && !deferredAttributes.isEmpty())
+			data.getList("Attributes", Tag.TAG_COMPOUND).addAll(deferredAttributes.copy());
+		return data;
+	}
+
 	public void joined(ServerPlayer player) {
 		try {
 			verifyAttachments(player);
-			for (var adapter : AdapterRegistry.all()) adapter.afterRestore(player);
+			for (var adapter : AdapterRegistry.all())
+				if (isAdapterActive(adapter)) adapter.afterRestore(player);
 			var vanilla =
 					document.getCompound("Adapters")
 							.getCompound(VanillaDataAdapter.PORTABLE)
@@ -431,6 +497,9 @@ public final class CharacterSession {
 			ProfileStatePayload.send(player);
 			save(player);
 			joined = true;
+			if (!deferredItems.isEmpty() || !deferredRecipes.isEmpty() || !deferredEffects.isEmpty()
+					|| !deferredAttributes.isEmpty() || !deferredAdapters.isEmpty())
+				player.sendSystemMessage(Component.translatable("terra_character.compatibility.deferred"));
 			AvatarPayload.joined(player);
 		} catch (Exception ex) {
 			fail(player, ex);
@@ -449,7 +518,8 @@ public final class CharacterSession {
 		var worlds = next.getCompound("Worlds");
 		var local = worlds.getCompound(world.id().toString());
 		for (var adapter : AdapterRegistry.all()) {
-			var data = adapter.capture(player);
+			if (!isAdapterActive(adapter)) continue;
+			var data = capture(player, adapter);
 			if (adapter.id().toString().equals(VanillaDataAdapter.PORTABLE)
 					&& player.isDeadOrDying()) {
 				data.putFloat("Health", player.getMaxHealth());
@@ -470,7 +540,9 @@ public final class CharacterSession {
 				CharacterStatisticsCodec.encode(
 						CharacterStatisticsService.capture(player, playTime.getTicks())));
 		request.store().commit(profile.id(), next, document.getLong("Revision"));
-		document.merge(next);
+		// Replace snapshots wholesale so removed recovery entries cannot return in multiplayer sync.
+		for (String key : next.getAllKeys()) document.put(key, next.get(key));
+		if (player.isDeadOrDying()) deferredEffects = new CompoundTag();
 		snapshot(player, false);
 		// The character bundle is authoritative. A failed mirror is repaired from it next time.
 		var mirror = new CompoundTag();
@@ -508,15 +580,20 @@ public final class CharacterSession {
 			save(player);
 			ProfileStatePayload.send(player);
 		}
-		for (var adapter : AdapterRegistry.all()) adapter.onDeath(player, keepInventory());
+		for (var adapter : AdapterRegistry.all())
+			if (isAdapterActive(adapter)) adapter.onDeath(player, keepInventory());
 	}
 
 	public Path progressPath(String kind) throws IOException {
+		return progressPath(kind, ".json");
+	}
+
+	private Path progressPath(String kind, String extension) throws IOException {
 		Path path =
 				WorldStore.directory(request.worldDirectory())
 						.resolve("progress/" + identityPath());
 		Files.createDirectories(path);
-		return path.resolve(kind + ".json");
+		return path.resolve(kind + extension);
 	}
 
 	private String identityPath() {

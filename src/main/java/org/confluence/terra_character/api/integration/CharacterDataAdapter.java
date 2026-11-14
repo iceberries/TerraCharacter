@@ -27,6 +27,11 @@ public interface CharacterDataAdapter {
 
 	void restore(ServerPlayer player, CompoundTag payload, int storedVersion);
 
+	/** Converts an owned older payload to the current schema, or defers it unchanged. */
+	default Optional<CompoundTag> migrate(ServerPlayer player, CompoundTag payload, int storedVersion) {
+		return Optional.empty();
+	}
+
 	/**
 	 * Explicit initialization for a new character or first visit; never inherit previous live data.
 	 */

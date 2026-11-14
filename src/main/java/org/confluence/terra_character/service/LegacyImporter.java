@@ -3,6 +3,7 @@ package org.confluence.terra_character.service;
 import net.minecraft.SharedConstants;
 import net.minecraft.nbt.*;
 import net.minecraft.util.DirectoryLock;
+import net.minecraft.world.level.storage.LevelResource;
 
 import org.confluence.terra_character.api.integration.CharacterDataAdapter;
 import org.confluence.terra_character.api.model.*;
@@ -70,7 +71,11 @@ public final class LegacyImporter {
 			if (!known.contains(key)) throw new IOException("No importer for attachment: " + key);
 		if (!source.player().getCompound("ForgeCaps").isEmpty())
 			throw new IOException("Legacy Forge capabilities require migration before import");
-		DataIntegrity.validate(source.player(), null);
+		var dataForValidation = source.player().copy();
+		// Portable effects are decoded on entry, when the destination registries are available.
+		dataForValidation.remove("active_effects");
+		dataForValidation.remove("ActiveEffects");
+		DataIntegrity.validate(dataForValidation, null);
 		UUID account =
 				source.player().hasUUID("UUID")
 						? source.player().getUUID("UUID")
@@ -157,6 +162,12 @@ public final class LegacyImporter {
 					Files.copy(old, backup.resolve(type + ".json"));
 					Files.copy(old, progress.resolve(type + ".json"));
 				}
+			}
+			Path oldCosmetics = world.directory().resolve(LevelResource.PLAYER_DATA_DIR.getId())
+					.resolve(account + ".cosarmor");
+			if (Files.isRegularFile(oldCosmetics, LinkOption.NOFOLLOW_LINKS)) {
+				Files.copy(oldCosmetics, backup.resolve(oldCosmetics.getFileName()));
+				Files.copy(oldCosmetics, progress.resolve("cosmetic_armor.dat"));
 			}
 			WorldStore.write(world.directory(), world.profile());
 			// A durable staging record lets retries finish a reserved import without exposing an

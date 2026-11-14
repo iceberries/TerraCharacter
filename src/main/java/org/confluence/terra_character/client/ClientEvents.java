@@ -16,6 +16,7 @@ import net.neoforged.neoforge.client.event.ScreenEvent;
 
 import org.confluence.terra_character.TerraCharacter;
 import org.confluence.terra_character.api.model.CharacterDifficulty;
+import org.confluence.terra_character.integration.EnvironmentAdapters;
 
 import java.util.List;
 import java.util.Set;
@@ -24,6 +25,7 @@ import java.util.Set;
 public final class ClientEvents {
 	@SubscribeEvent(priority = EventPriority.LOWEST)
 	public static void init(ScreenEvent.Init.Post event) {
+		EnvironmentAdapters.discover();
 		var screen = event.getScreen();
 		if (screen instanceof TitleScreen) {
 			ClientProfiles.setSelected(null);

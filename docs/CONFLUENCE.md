@@ -1,5 +1,7 @@
 # 内置汇流兼容
 
+当前构建适配 Confluence 1.2.12、Minecraft 1.21.1 和 NeoForge 21.1.238。新版渔夫任务不再保存 `currentQuestedFish`，兼容 Mixin 已移除该字段引用；换装刷新继续保留人物的累计任务次数和本世界的当日完成记录。历史 `terra_character_confluence:*` 适配器 ID 与版本保持不变。
+
 从此次合并起只分发 TerraCharacter 一个 JAR。未安装 Confluence 时提供独立人物与世界流程；安装 Confluence 及其正常前置后，自动启用原兼容模块的全部功能。升级时移除旧的 TerraCharacterConfluence JAR；元数据会拒绝旧兼容模组与新版核心同时加载，防止重复注册。
 
 保留魔力、永久增益、扩展背包、饰品、猪猪储蓄罐、保险箱与渔夫任务的归属适配；世界选项、特殊种子、难度、掉钱、复活与生命 HUD 的兼容接点保持不变。八个适配器和世界选项仍使用 `terra_character_confluence:*` 数据标识，已有存档无需重写。此命名空间不再表示一个独立安装的模组。

@@ -4,12 +4,15 @@
   "package": "org.confluence.terra_character.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
+    "AttachmentTypeAccessor",
+    "AttachmentStateAccessor",
     "PlayerListMixin",
     "PlayerDeathMixin",
     "RespawnMixin",
     "RespawnPacketMixin",
     "ServerLifecycleMixin",
-    "ConfigurationDisconnectMixin"
+    "ConfigurationDisconnectMixin",
+    "compat.CosmeticArmorInventoryMixin"
   ],
   "client": [
     "client.IntegratedPlayerListMixin",
@@ -22,7 +25,9 @@
     "client.HeartMixin",
     "client.MultiplayerLeaveMixin",
     "client.LocalDisconnectMixin",
-    "client.ClientStopMixin"
+    "client.ClientStopMixin",
+    "client.PehkuiPreviewMixin",
+    "client.RelicsPostEffectsMixin"
   ],
   "injectors": {
     "defaultRequire": 1

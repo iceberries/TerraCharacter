@@ -1,4 +1,5 @@
 {
+  "terra_character.compatibility.deferred": "部分人物数据无法加载，原数据已保留。本次会话中，对受影响的模组容器所做的修改不会保存。",
   "terra_character.skin.account.loading": "正在获取账号皮肤…",
   "terra_character.skin.account.ready": "账号皮肤已就绪",
   "terra_character.skin.account.fallback": "使用缓存或原版皮肤",

@@ -57,7 +57,6 @@ public final class SpecialDataAdapter implements CharacterDataAdapter {
 		if (scope == Scope.CHARACTER && !data.contains(InitialItemsState.NBT_KEY))
 			base.putBoolean(InitialItemsState.NBT_KEY, true);
 		state.deserializeNBT(player.registryAccess(), base);
-		state.removeCurrentQuestedFish();
 	}
 
 	@Override

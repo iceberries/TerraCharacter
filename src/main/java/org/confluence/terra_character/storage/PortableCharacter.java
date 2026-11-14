@@ -1,6 +1,7 @@
 package org.confluence.terra_character.storage;
 
 import net.minecraft.nbt.*;
+import net.minecraft.resources.ResourceLocation;
 
 import org.confluence.terra_character.api.integration.CharacterDataAdapter;
 import org.confluence.terra_character.integration.*;
@@ -50,18 +51,18 @@ public final class PortableCharacter {
 		RemoteCharacters.metadata(metadata);
 		ProfileCodec.character(portable.getCompound("Profile"));
 		var group = portable.getCompound("Adapters");
-		AdapterRegistry.validate(group);
+		var adapters = AdapterRegistry.all();
 		for (String key : group.getAllKeys()) {
 			var entry = group.getCompound(key);
-			if (!entry.contains("Data", Tag.TAG_COMPOUND)
+			if (!entry.contains("Version", Tag.TAG_INT) || entry.getInt("Version") < 1
+					|| !entry.contains("Data", Tag.TAG_COMPOUND)
 					|| !entry.getAllKeys().equals(Set.of("Version", "Data")))
 				throw new IOException("Invalid adapter envelope: " + key);
-			var adapter =
-					AdapterRegistry.all().stream()
-							.filter(a -> a.id().toString().equals(key))
-							.findFirst()
-							.orElseThrow();
-			if (adapter.scope() != CharacterDataAdapter.Scope.CHARACTER)
+			if (ResourceLocation.tryParse(key) == null)
+				throw new IOException("Invalid adapter identity: " + key);
+			if (key.equals(VanillaDataAdapter.LOCAL) || adapters.stream().anyMatch(
+					adapter -> adapter.id().toString().equals(key)
+							&& adapter.scope() != CharacterDataAdapter.Scope.CHARACTER))
 				throw new IOException("World data cannot be uploaded: " + key);
 			if (key.equals(VanillaDataAdapter.PORTABLE)
 					&& !VanillaDataAdapter.CHARACTER_KEYS.containsAll(

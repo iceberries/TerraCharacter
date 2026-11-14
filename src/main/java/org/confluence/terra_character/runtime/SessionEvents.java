@@ -13,6 +13,7 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 import org.confluence.terra_character.TerraCharacter;
 import org.confluence.terra_character.integration.AdapterRegistry;
+import org.confluence.terra_character.integration.EnvironmentAdapters;
 import org.confluence.terra_character.network.CharacterHandshake;
 import org.confluence.terra_character.network.ProfileStatePayload;
 
@@ -23,6 +24,7 @@ public final class SessionEvents {
 	@SubscribeEvent
 	public static void starting(ServerAboutToStartEvent event) {
 		try {
+			EnvironmentAdapters.discover();
 			CharacterSession.start(event.getServer());
 		} catch (IOException ex) {
 			CharacterSession.stop();
@@ -49,7 +51,7 @@ public final class SessionEvents {
 			if (session != null)
 				try {
 					for (var adapter : AdapterRegistry.all())
-						adapter.afterClone(original, replacement);
+						if (session.isAdapterActive(adapter)) adapter.afterClone(original, replacement);
 				} catch (Exception ex) {
 					session.fail(replacement, ex);
 				}
@@ -58,15 +60,17 @@ public final class SessionEvents {
 
 	@SubscribeEvent(priority = EventPriority.LOWEST)
 	public static void respawn(PlayerEvent.PlayerRespawnEvent event) {
-		if (event.getEntity() instanceof ServerPlayer player
-				&& CharacterSession.of(player) != null) {
+		if (event.getEntity() instanceof ServerPlayer player) {
+			var session = CharacterSession.of(player);
+			if (session == null) return;
 			try {
-				for (var adapter : AdapterRegistry.all()) adapter.afterRestore(player);
+				for (var adapter : AdapterRegistry.all())
+					if (session.isAdapterActive(adapter)) adapter.afterRestore(player);
 				JourneyController.apply(player);
 				ProfileStatePayload.send(player);
 				save(player);
 			} catch (Exception ex) {
-				CharacterSession.of(player).fail(player, ex);
+				session.fail(player, ex);
 			}
 		}
 	}
