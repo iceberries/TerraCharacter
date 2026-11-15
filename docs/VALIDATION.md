@@ -5,9 +5,9 @@
 
 本次只检查合并影响的部分：迁入核心的 ConfluenceWorldOptionsTest 共 3 项通过；单 JAR 元数据、条件 Mixin、兼容资源以及无前置／测试类嵌入检查通过。独立客户端启动 PASS，确认运行类路径没有 Confluence，兼容适配器与世界 UI 未激活；带汇流的客户端启动 PASS，确认无需旧兼容模组，八个旧数据标识全部注册、客户端世界选项启用、魔力 Accessor Mixin 生效。未重复资产、UI 或多人全量测试。
 
-日志：`TerraCharacter/build/builtin-confluence-build.log`、`builtin-standalone.log`、`builtin-with-confluence.log`。报告：`integration-standalone-result.txt` 与 `integration-confluence-result.txt`。发行包位于 `TerraCharacter/build/libs`。
+日志：`CharacterPortal/build/builtin-confluence-build.log`、`builtin-standalone.log`、`builtin-with-confluence.log`。报告：`integration-standalone-result.txt` 与 `integration-confluence-result.txt`。发行包位于 `CharacterPortal/build/libs`。
 
-下面保留以前的阶段验证记录；涉及 TerraCharacterConfluence 独立工程的命令和安装组合属于历史方案。当前命令及安装说明以 [内置汇流兼容](CONFLUENCE.md) 为准。
+下面保留以前的阶段验证记录；涉及 CharacterPortalConfluence 独立工程的命令和安装组合属于历史方案。当前命令及安装说明以 [内置汇流兼容](CONFLUENCE.md) 为准。
 
 
 验证环境：Windows、Java 21、Minecraft 1.21.1、NeoForge 21.1.235。所有测试世界位于模块 `build/smoke-run`，与普通客户端的已有世界分开。
@@ -19,7 +19,7 @@
 其中新增 6 项皮肤绘制测试：像素不可变性与缓存内容相等、标准／纤细体型的全部双层 UV 无重叠、笔画插值与裁切、外层擦除与基础层隔离、整条笔画撤销／重做／按面还原、原子保存／重载／归档、旧人物兼容及错误像素数据拒绝。
 
 ```powershell
-.\gradlew.bat :TerraCharacter:test :TerraCharacterConfluence:test :TerraCharacter:build :TerraCharacterConfluence:build --offline
+.\gradlew.bat :CharacterPortal:test :CharacterPortalConfluence:test :CharacterPortal:build :CharacterPortalConfluence:build --offline
 ```
 
 JAR 检查：核心只声明 Minecraft／NeoForge 前置；兼容模块额外要求核心与汇流。两者没有 jarJar 嵌入依赖，也不包含 `src/smokeTest` 的开发测试类。中英文语言键一致。
@@ -48,13 +48,13 @@ JAR 检查：核心只声明 Minecraft／NeoForge 前置；兼容模块额外要
 运行方式：
 
 ```powershell
-.\gradlew.bat :TerraCharacter:runClient -PcharacterSmoke=true --offline
-.\gradlew.bat :TerraCharacterConfluence:runClient -PcharacterSmoke=true --offline
+.\gradlew.bat :CharacterPortal:runClient -PcharacterSmoke=true --offline
+.\gradlew.bat :CharacterPortalConfluence:runClient -PcharacterSmoke=true --offline
 ```
 
 报告分别写入两个模块的 `build/smoke-run/smoke-result.txt`，预览与创建界面截图位于同目录的 `screenshots`。
 
-本次最终报告：独立核心与汇流兼容组合均为 `PASS`，各完成 10 次人物／世界会话交叉检查及原版创建界面、导入、硬核重载和会话清理检查。独立核心运行的模组列表只有 Minecraft、NeoForge 和 Terra Character。缺失维度和配方的拒绝检查也在游戏运行环境通过。
+本次最终报告：独立核心与汇流兼容组合均为 `PASS`，各完成 10 次人物／世界会话交叉检查及原版创建界面、导入、硬核重载和会话清理检查。独立核心运行的模组列表只有 Minecraft、NeoForge 和 Character Portal。缺失维度和配方的拒绝检查也在游戏运行环境通过。
 
 复测修复了两个实际问题：小窗口说明重叠与人物预览朝向，以及汇流附件默认复制在复活时丢失饰品染料。后者经人物适配器的 `afterClone` 恢复，软核保留及中核掉落再次通过。每轮使用新的测试世界，避免前轮死亡掉落与经验球污染结果。
 
@@ -63,8 +63,8 @@ JAR 检查：核心只声明 Minecraft／NeoForge 前置；兼容模块额外要
 独立测试目录为各模块的 `build/skin-smoke-run`，报告 `skin-result.txt`，界面截图位于 `screenshots`。开发测试代码不进入发行 JAR。
 
 ```powershell
-.\gradlew.bat :TerraCharacter:runClient -PskinSmoke=true --offline
-.\gradlew.bat :TerraCharacterConfluence:runClient -PskinSmoke=true --offline
+.\gradlew.bat :CharacterPortal:runClient -PskinSmoke=true --offline
+.\gradlew.bat :CharacterPortalConfluence:runClient -PskinSmoke=true --offline
 ```
 
 真实客户端通过入口打开编辑器并模拟点击、拖动与擦除。检查基础层不透明、未绘制外层透明、RGB 通道、无效 UV 留空；按整条笔画撤销／重做，外层擦除及按面还原不影响基础层；应用与最终保存分离，取消和 resize 保留正确草稿；标准切换纤细体型后绘制不越过手臂边界。预览从 framebuffer 统计绘制色，检查外层显示／隐藏实际生效，避免只有元数据通过而模型未显示外层。
@@ -82,8 +82,8 @@ JAR 检查：核心只声明 Minecraft／NeoForge 前置；兼容模块额外要
 独立核心与汇流＋核心＋兼容模块的双客户端最终报告均为 `PASS`：7 次成功进入、硬核永久死亡拒绝重连、未选人物拒绝连接。A／B／A 切换验证背包、经验与统计隔离；刻意让房主与访客使用同一人物 UUID，验证账号存储隔离；软核保留、中核掉落、硬核墓碑与复活限制执行；基础层和外层绘制像素实际同步到房主的其他玩家外观缓存；退出后本轮四个人物仍在服务器存档中。共享前正常提交并清除离线检查点也已通过。汇流组合另验证生命水晶、魔力星、小数魔力恢复、渔夫累计与当地日期、饰品、扩展弹药及饰品染料在多人重连后恢复；软核复活保留，中核死亡掉落。
 
 ```powershell
-.\gradlew.bat :TerraCharacter:runClient -PmultiplayerSmoke=true --offline --no-daemon
-.\gradlew.bat :TerraCharacterConfluence:runClient -PmultiplayerSmoke=true --offline --no-daemon
+.\gradlew.bat :CharacterPortal:runClient -PmultiplayerSmoke=true --offline --no-daemon
+.\gradlew.bat :CharacterPortalConfluence:runClient -PmultiplayerSmoke=true --offline --no-daemon
 ```
 
 报告位于各模块 `build/multiplayer-smoke-host/mp-result.txt` 和 `build/multiplayer-smoke-guest/mp-result.txt`；访客日志为后者目录下 `guest-console.log`。每轮使用新的世界及人物，保留测试产物便于复查。
@@ -130,11 +130,11 @@ JAR 检查：核心只声明 Minecraft／NeoForge 前置；兼容模块额外要
 - 测试使用各模块 build/menu-smoke-run，仅整理其中的测试人物；普通游戏目录未用于检查。全部 runClient 在沙盒外启动。
 - 本次未实测原版列表打开世界后的玩法会话、全部模组饰品或虚荣装备组合，不计为通过。
 
-日志：TerraCharacter/build/menu-smoke.log、TerraCharacterConfluence/build/menu-smoke.log；报告：对应 menu-smoke-run/menu-result.txt；截图：对应 menu-smoke-run/screenshots/。
+日志：CharacterPortal/build/menu-smoke.log、CharacterPortalConfluence/build/menu-smoke.log；报告：对应 menu-smoke-run/menu-result.txt；截图：对应 menu-smoke-run/screenshots/。
 
 
 ## 2026-10-13：登录账号默认皮肤
 
 SkinBaseTest 的四项测试通过：现代皮肤外层透明度、旧版左右肢体镜像与帽层转换、底图与手绘分离、人物保存及多人元数据往返、旧人物读取。隔离 accountSkinSmoke 客户端实际按开发登录名 Confluence 下载了正版皮肤，并验证标准／纤细模型映射、外层擦除、恢复原图、染色不丢底图、改人物名不影响账号查询，以及人物保存重读。此次未运行全量测试。
 
-日志：`TerraCharacter/build/account-skin-test.log`、`account-skin-client.log`；报告：`build/account-skin-smoke-run/account-skin-result.txt`。协议升至 7；存档格式仍为 1，BaseSkin 为可选字段，旧存档可读。
+日志：`CharacterPortal/build/account-skin-test.log`、`account-skin-client.log`；报告：`build/account-skin-smoke-run/account-skin-result.txt`。协议升至 7；存档格式仍为 1，BaseSkin 为可选字段，旧存档可读。

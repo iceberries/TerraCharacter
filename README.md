@@ -1,4 +1,4 @@
-# Terra Character
+# Character Portal
 
 当前模组版本：**1.0**。本轮并发、空值、加载边界与代码规范审查见 [1.0 审查记录](docs/REVIEW_1.0.md)。
 
@@ -7,6 +7,8 @@
 为 Minecraft 1.21.1 / NeoForge 提供类似泰拉瑞亚的人物与世界分离。独立安装无需汇流；汇流专属兼容功能现已内置，检测到 Confluence 后自动启用，无需额外兼容模组。见 [汇流兼容说明](docs/CONFLUENCE.md)。
 
 主菜单统一为“开始游戏”：先创建或选择人物，再选择“进入自己的世界”或“加入他人的世界”。本地人物名字、外观和物品独立于 Minecraft 登录账号；同一人物可在兼容的本地世界间移动。多人入口使用原版服务器列表、直接连接和局域网发现。
+
+自动环境适配在创建人物和世界前检测模组注册表，保存人物属性、可序列化附件与有效世界生成选项。未知数据默认按人物与世界隔离；已有专用适配器优先。接口与保存范围见 [环境状态适配](docs/ENVIRONMENT_ADAPTERS.md)。
 
 第二阶段包含：
 
@@ -21,6 +23,8 @@
 
 人物难度创建后不可修改。旅行的研究门槛为物品默认最大堆叠数量；复制生成该物品的默认堆叠，服务器检查研究状态和背包容量。旅行控制位于暂停菜单。
 
+安装支持防急眼模式的 BetterExperience 后，创建人物的难度选择增加“防急眼”。所选人物沿用 BetterExperience 的死亡援助：第 3 次死亡开启世界死亡不掉落和单人作弊，第 4 至 9 次重生后获得受击保护，第 10 次重生进入 100 秒临时创造，结束后恢复原模式并清零计数。其他难度仍按人物自身规则处理；未使用独立人物的玩家沿用 BetterExperience 配置。死亡计数和保护计时按人物与世界分别保存。联机时服务器也需安装支持该功能的 BetterExperience。
+
 创建或编辑人物时点击“绘制皮肤”，选择头部、身体、左右手臂或左右腿，再选择正面、背面、侧面、顶面或底面。左键绘制，右键擦除；切换工具可使用橡皮或取色。颜色可从调色板选择或输入六位 RGB；Ctrl+Z 撤销，Ctrl+Y／Ctrl+Shift+Z 重做。撤销按整条笔画计，保留最近 32 步。
 
 基础层始终不透明，擦除还原程序生成的原色；外层初始透明，擦除后透出基础层。外层画布以暗色棋盘显示下方基础层，模型可单独隐藏外层检查。标准／纤细手臂、两侧肢体和双层 UV 分开处理，笔刷不会越过当前面的边界。绘制采用不透明像素；本版不提供半透明笔刷和 PNG 导入／导出。
@@ -30,18 +34,20 @@
 存档位置：
 
 ```text
-<gameDir>/terra_character/characters/<character-uuid>/
+<gameDir>/character_portal/characters/<character-uuid>/
   character.nbt       # 权威人物包：元数据、资产、各世界局部状态、旅行状态、revision
   backups/            # 最近 8 份人物包备份
   dead.nbt            # 硬核永久墓碑
   session.nbt         # 未完成会话标记
   checkpoint-*/       # 进入前的人物／世界共同检查点
-<worldSave>/data/terra_character/
+<worldSave>/data/character_portal/
   world.nbt           # 世界 UUID 和配置
   session.nbt         # 未完成会话所属人物，阻止其他人物进入
   characters/*.nbt    # 已提交局部状态的恢复镜像
   progress/<character-uuid>/{stats,advancements}.json
 ```
+
+从 Terra Character 升级时无需手动处理存档：首次读取会把 `<gameDir>/terra_character`、各世界 `data/terra_character` 和服务端 `terra_character/server_characters` 目录改名为对应的 `character_portal` 目录，并把存档内 `terra_character` 与 `terra_character_confluence` 命名空间改写为 `character_portal` 与 `character_portal_confluence`。改名只发生一次，升级前仍建议备份人物包与世界目录。
 
 未共享的单人世界每次进入前，在世界离线且取得锁后建立检查点。正常关服完成世界保存后才清除检查点；异常中断时，从人物菜单选择“恢复中断的会话”，成对恢复人物和世界到进入前，保留中断世界的副本。硬核墓碑不会回滚。检查点需要与世界大小相应的磁盘空间；人物包与世界目录应分别备份、一起迁移。
 
@@ -49,34 +55,34 @@
 
 背包、末影箱、经验、永久增益、旅行研究和兼容模块的便携数据可在单人与联机间携带。服务器每 5 秒检查人物变化并回写本机，登录、复活、切换维度和保存时也会回写。暂停菜单退出、硬核死亡退出以及关闭游戏窗口会先请求最终保存，客户端原子落盘成功后才退出；失败时显示错误，超时可重试。连接断开或进程被强制终止时只能保留最近成功回写的数据。联机持有本机人物锁，旧连接或其他人物的同步消息不能覆盖当前人物。
 
-位置、床、死亡地点、世界相关任务状态、统计和成就保留在各自世界，上传／回写不会替换 `Worlds`。本机硬核死亡仍不可通过编辑或恢复备份复活；如果服务器镜像与本机人物冲突，也按本机状态更新镜像，旧服务器墓碑另存备份。每账号最多 64 个服务端人物。镜像路径为 `<serverDir>/terra_character/server_characters/<account-uuid>/characters/<character-uuid>/`，联机进度路径为 `<worldSave>/data/terra_character/progress/<account-uuid>/<character-uuid>/`。其他玩家可看到人物的生成皮肤与绘制内容。旅行角色的全局时间、天气控制需要管理员权限，本地世界所有者不受此限制。
+位置、床、死亡地点、世界相关任务状态、统计和成就保留在各自世界，上传／回写不会替换 `Worlds`。本机硬核死亡仍不可通过编辑或恢复备份复活；如果服务器镜像与本机人物冲突，也按本机状态更新镜像，旧服务器墓碑另存备份。每账号最多 64 个服务端人物。镜像路径为 `<serverDir>/character_portal/server_characters/<account-uuid>/characters/<character-uuid>/`，联机进度路径为 `<worldSave>/data/character_portal/progress/<account-uuid>/<character-uuid>/`。其他玩家可看到人物的生成皮肤与绘制内容。旅行角色的全局时间、天气控制需要管理员权限，本地世界所有者不受此限制。
 
 协议版本为 7，人物使用有界压缩分片（每片 24 KiB，压缩包最多 8 MiB，解压 NBT 配额 32 MiB）。未知适配器、错误版本、世界数据注入、身份不符、重复／乱序分片会被拒绝。服务器仍执行在线玩法与权限校验；人物来源由客户端决定。
 
-开放局域网前，先提交人物与世界，再永久写入 `data/terra_character/multiplayer.nbt` 共享标记并清除单人检查点。共享世界此后按 Minecraft 常规世界保存和人物原子提交运行，**不提供单人整世界回滚**；已有旧检查点只能清理，不能恢复覆盖其他玩家进度。请整组备份服务端人物与世界。联机人物管理 UI 和分布式事务恢复不在本版范围。
+开放局域网前，先提交人物与世界，再永久写入 `data/character_portal/multiplayer.nbt` 共享标记并清除单人检查点。共享世界此后按 Minecraft 常规世界保存和人物原子提交运行，**不提供单人整世界回滚**；已有旧检查点只能清理，不能恢复覆盖其他玩家进度。请整组备份服务端人物与世界。联机人物管理 UI 和分布式事务恢复不在本版范围。
 
 旧原版硬核世界只提供人物导入，导出的人物继续为硬核；请为它创建新的非世界硬核存档。这样世界可以接纳不同人物难度，而人物永久死亡仍由服务端执行。
 
 核心业务使用仓储接口、适配器策略、会话协调器和不可变模型。发行 JAR 包含汇流兼容代码，但不嵌入汇流或其前置；构建使用 compileOnly 依赖，运行时只在检测到汇流后加载兼容入口、监听器与 Mixin。完整归属与实施记录见 [设计文档](docs/DESIGN.md)。
 
 ```powershell
-.\gradlew.bat :TerraCharacter:test :TerraCharacter:build --offline
-.\gradlew.bat :TerraCharacter:runClient --offline
+.\gradlew.bat :CharacterPortal:test :CharacterPortal:build --offline
+.\gradlew.bat :CharacterPortal:runClient --offline
 # 加载汇流进行开发验收；发行包不需要此参数
-.\gradlew.bat :TerraCharacter:runClient -PwithConfluence=true --offline --no-daemon
+.\gradlew.bat :CharacterPortal:runClient -PwithConfluence=true --offline --no-daemon
 # 仅开发时启用，独立临时运行目录；测试代码不打入发行 JAR
-.\gradlew.bat :TerraCharacter:runClient -PcharacterSmoke=true --offline
+.\gradlew.bat :CharacterPortal:runClient -PcharacterSmoke=true --offline
 # 真实双客户端 TCP 联机专项；仅开发目录，自动启动隔离访客
-.\gradlew.bat :TerraCharacter:runClient -PmultiplayerSmoke=true --offline --no-daemon
+.\gradlew.bat :CharacterPortal:runClient -PmultiplayerSmoke=true --offline --no-daemon
 # 皮肤编辑、双层透明、保存及游戏内渲染专项；独立 build/skin-smoke-run
-.\gradlew.bat :TerraCharacter:runClient -PskinSmoke=true --offline
+.\gradlew.bat :CharacterPortal:runClient -PskinSmoke=true --offline
 ```
 
 游戏测试轮流使用 A／B 人物进入 X／Y 世界，检查资产、出生点、统计、死亡与复活、旅行权限、导入幂等性和会话清理；结果写入 `build/smoke-run/smoke-result.txt`。详细范围和实际结果见 [验证记录](docs/VALIDATION.md)。第三阶段继续完善界面风格、完整本地化、资源包扩展、排序与备份管理。
 
 这是根工程内的 Gradle 子模块，未创建独立 Git 仓库或 Git submodule。
 
-新建人物默认根据当前 Minecraft 登录账号名查询正版皮肤（不使用人物名）。查询与下载异步进行，自动识别标准／纤细体型，支持旧版 64×32 皮肤转为双层 64×64。下载成功后在 `<gameDir>/terra_character/account_skins/<登录名>.nbt/.png` 缓存，六小时内复用；失败或超过八秒时使用缓存／原版默认皮肤。底图像素写入人物 `Appearance.BaseSkin`，与手绘 `Paint` 分离，因此保存、重启、跨世界与多人传输不依赖再次下载。手绘擦除／撤销不会丢失底图；显式擦除第二层与恢复原像素仍分别保存。已有 fire_berry 人物保持原外观，旧素材作为显式预设保留；整体预设新增“账号皮肤（默认）”。参见 [账号皮肤](docs/ACCOUNT_SKIN.md)。人物列表已移除“编辑外观”，开始游戏与删除人物平分该行。人物创建时仍可选择样式与绘制皮肤。
+新建人物默认根据当前 Minecraft 登录账号名查询正版皮肤（不使用人物名）。查询与下载异步进行，自动识别标准／纤细体型，支持旧版 64×32 皮肤转为双层 64×64。下载成功后在 `<gameDir>/character_portal/account_skins/<登录名>.nbt/.png` 缓存，六小时内复用；失败或超过八秒时使用缓存／原版默认皮肤。底图像素写入人物 `Appearance.BaseSkin`，与手绘 `Paint` 分离，因此保存、重启、跨世界与多人传输不依赖再次下载。手绘擦除／撤销不会丢失底图；显式擦除第二层与恢复原像素仍分别保存。已有 fire_berry 人物保持原外观，旧素材作为显式预设保留；整体预设新增“账号皮肤（默认）”。参见 [账号皮肤](docs/ACCOUNT_SKIN.md)。人物列表已移除“编辑外观”，开始游戏与删除人物平分该行。人物创建时仍可选择样式与绘制皮肤。
 
 ### 第三阶段：像素换装接口
 

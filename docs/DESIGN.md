@@ -1,4 +1,4 @@
-# Terra Character：人物与世界分离设计及实施规划
+# Character Portal：人物与世界分离设计及实施规划
 
 ## 目标与本次范围
 
@@ -10,11 +10,11 @@
 
 第二阶段已实现实际单人流程及双方安装模组的多人独立人物，兼容模块接入汇流资产和规则；具体验证范围见 [验证记录](VALIDATION.md)。第三阶段继续打磨 UI、资源扩展与诊断体验。
 
-安装关系（2026-10-13 更新）：仅分发 TerraCharacter。原 TerraCharacterConfluence 的代码、资源、Mixin 和测试已合并到其中；汇流是可选运行依赖。兼容入口通过 ModList 检测并延迟加载；事件监听器显式按安装状态与物理端注册，Mixin 插件依据加载器的模组列表启用。原有 terra_character_confluence 命名空间保留为存档标识，避免已有资产和世界配置失效。下文旧阶段的双模块构建记录属于历史方案，当前构建与安装说明见 CONFLUENCE.md。
+安装关系（2026-10-13 更新）：仅分发 CharacterPortal。原 CharacterPortalConfluence 的代码、资源、Mixin 和测试已合并到其中；汇流是可选运行依赖。兼容入口通过 ModList 检测并延迟加载；事件监听器显式按安装状态与物理端注册，Mixin 插件依据加载器的模组列表启用。旧的 terra_character 与 terra_character_confluence 标识在读取时改写为 character_portal 与 character_portal_confluence，避免已有资产和世界配置失效。下文旧阶段的双模块构建记录属于历史方案，当前构建与安装说明见 CONFLUENCE.md。
 
 ## 已有内容与改造接点
 
-下表全部属于 TerraCharacterConfluence 的兼容职责；核心另行实现原版人物与世界流程，不引用这些汇流实现。
+下表全部属于 CharacterPortalConfluence 的兼容职责；核心另行实现原版人物与世界流程，不引用这些汇流实现。
 
 | 现有位置（相对仓库根目录） | 现有行为 | 接入方向 |
 | --- | --- | --- |
@@ -22,7 +22,7 @@
 | `ConfluenceOtherworld/.../util/PlayerUtils.java` | `dropMoney` 按世界 keepInventory 与世界难度计算；`askForSoftcore` 发出提示 | 掉落策略读取人物难度，复用现有扣钱、掉钱和难度比例，避免扣款两次 |
 | `ConfluenceOtherworld/.../mixin/client/gui/DeathScreenMixin.java` | 保留汇流复活倒计时，读取原版硬核标志 | 人物硬核状态同步到死亡界面；继续复用倒计时 |
 | `ConfluenceOtherworld/.../client/gui/hud/TerraStyleHealthHud.java` | 读取世界硬核状态决定生命 HUD | 读取人物硬核状态，同时支持普通旧存档 |
-| `ConfluenceOtherworld/.../common/attachment` 与 `common/init/ModAttachmentTypes.java` | 魔力、永久增益、扩展背包、猪猪储蓄罐、保险箱、人物特殊数据 | TerraCharacterConfluence 提供汇流数据适配器，按字段分类导出和恢复 |
+| `ConfluenceOtherworld/.../common/attachment` 与 `common/init/ModAttachmentTypes.java` | 魔力、永久增益、扩展背包、猪猪储蓄罐、保险箱、人物特殊数据 | CharacterPortalConfluence 提供汇流数据适配器，按字段分类导出和恢复 |
 | `TerraCurio/.../common/attachment` | 饰品与人物相关数据 | 检查实际序列化字段，提供独立适配器；不复制派生属性修饰符 |
 | `ConfluenceOtherworld/.../common/entity/monster/difficulty/CreatureDifficultyScaling.java` | 通过 `LibUtils.switchByDifficulty` 选经典／专家／大师／传奇数值 | 复用有效世界难度入口，不建立第二套敌怪倍率 |
 | `ConfluenceOtherworld/.../common/init/ModSecretSeeds.java`、`mixed/IWorldOptions.java` | 解析特殊种子及世界标志 | 世界创建保留种子原文和现有解析；传奇为特殊种子派生效果 |
@@ -54,8 +54,8 @@
 依赖方向为：
 
 ```text
-TerraCharacter → Minecraft / NeoForge
-TerraCharacterConfluence → TerraCharacter
+CharacterPortal → Minecraft / NeoForge
+CharacterPortalConfluence → CharacterPortal
                         → ConfluenceOtherworld → 汇流现有组件
 ```
 
@@ -71,11 +71,11 @@ TerraCharacterConfluence → TerraCharacter
 | `api/session` | 拒绝死亡人物、旅行兼容性校验 | 会话生命周期、持有锁、本地与多人身份绑定及客户端便携数据导入 |
 | `api/integration` | 分人物／人物世界的数据适配 SPI，capture／restore／initialize | 注册、迁移、回滚、完整性检查与同步 |
 | 客户端 | 自有默认样式、可选兼容入口 | 人物列表、捏人预览、世界列表、错误与确认页面 |
-| TerraCharacterConfluence | 独立入口、双前置、汇流世界选项元数据转换 | 汇流数据适配器、特殊种子／难度映射、掉钱和复活兼容 |
+| CharacterPortalConfluence | 独立入口、双前置、汇流世界选项元数据转换 | 汇流数据适配器、特殊种子／难度映射、掉钱和复活兼容 |
 
 核心 `WorldDifficulty` 为原版和平、简单、普通、困难，加上独立的旅行模式；旅行不能简单等同于和平或创造。`WorldSettings` 保存原始种子、预设、基础难度和不可变的 `Map<String, String>` 扩展字段，扩展键必须带命名空间。
 
-邪恶类型与经典／专家／大师选项由兼容模块的 `ConfluenceWorldOptions` 管理，以 `terra_character_confluence:world_difficulty` 和 `terra_character_confluence:evil` 扩展键保存。经典／专家／大师分别使用现有 0.75／1.5／2.25 有效难度；传奇继续由特殊种子派生。未知扩展保留，加载协调器要求对应的选项提供者注册并验证，配置冲突拒绝进入。已有普通世界没有这些扩展时继续使用其原有难度与世界标志。
+邪恶类型与经典／专家／大师选项由兼容模块的 `ConfluenceWorldOptions` 管理，以 `character_portal_confluence:world_difficulty` 和 `character_portal_confluence:evil` 扩展键保存。经典／专家／大师分别使用现有 0.75／1.5／2.25 有效难度；传奇继续由特殊种子派生。未知扩展保留，加载协调器要求对应的选项提供者注册并验证，配置冲突拒绝进入。已有普通世界没有这些扩展时继续使用其原有难度与世界标志。
 
 核心独立提供原版背包／装备、经验、位置、死亡与重生处理，不调用汇流工具类。软核保留物品和经验；中核走原版掉落；硬核按人物永久死亡；汇流货币及其难度比例只由兼容模块处理。核心 UI 使用自有默认样式，汇流风格留待第三阶段打磨。
 
@@ -109,8 +109,8 @@ TerraCharacterConfluence → TerraCharacter
 
 ### 第一阶段：搭建框架（已完成）
 
-- [x] 使用 `TerraCharacter` 名称，接入根工程，核心仅依赖 Minecraft／NeoForge。
-- [x] 新建可选 `TerraCharacterConfluence`，将汇流依赖、专属世界配置与后续兼容职责分离。
+- [x] 使用 `CharacterPortal` 名称，接入根工程，核心仅依赖 Minecraft／NeoForge。
+- [x] 新建可选 `CharacterPortalConfluence`，将汇流依赖、专属世界配置与后续兼容职责分离。
 - [x] 梳理现有软核、硬核、世界难度、特殊种子与附加数据接点。
 - [x] 定义数据归属、依赖方向、存储与会话方案。
 - [x] 实现元数据模型、仓储接口、创建服务、难度组合校验和数据适配 SPI。
@@ -120,9 +120,9 @@ TerraCharacterConfluence → TerraCharacter
 
 2026-10-12 独立核心拆分后的验证记录：
 
-- `:TerraCharacter:test :TerraCharacter:build --offline` 成功，28 项测试通过。该构建未执行汇流或兼容模块的构建任务。
-- `:TerraCharacter:dependencyInsight --dependency ConfluenceOtherworld --configuration runtimeClasspath --offline` 未发现匹配依赖。
-- `:TerraCharacterConfluence:test :TerraCharacterConfluence:build :ConfluenceOtherworld:jarJar --offline` 成功，兼容模块 3 项测试通过。
+- `:CharacterPortal:test :CharacterPortal:build --offline` 成功，28 项测试通过。该构建未执行汇流或兼容模块的构建任务。
+- `:CharacterPortal:dependencyInsight --dependency ConfluenceOtherworld --configuration runtimeClasspath --offline` 未发现匹配依赖。
+- `:CharacterPortalConfluence:test :CharacterPortalConfluence:build :ConfluenceOtherworld:jarJar --offline` 成功，兼容模块 3 项测试通过。
 - 两个 JAR 的元数据与打包内容检查通过：核心只声明 Minecraft／NeoForge；兼容模块要求核心与汇流并在二者之后加载；两个模块均未嵌入前置，汇流 jarjar 元数据与目录均不包含它们。
 - `git diff --check` 通过。当时尚未启动客户端；第二阶段的实际游戏验证另行记录。
 
@@ -155,7 +155,7 @@ TerraCharacterConfluence → TerraCharacter
 - 基础身体、发型、眼睛、服装分层组合；发型可染色，图层资源可由资源包扩展。
 - 预览旋转与缩放、整个人物／当前部位随机、重置与取消恢复。
 
-这些是后续外观扩展计划，当前版本使用基础生成皮肤，并已补充下述像素绘制工具。MCA 作为交互与数据组织参考，TerraCharacter 不增加 MCA 前置，也不直接使用其素材或实现。外观资源的缺失回退仍须保留原始人物元数据。
+这些是后续外观扩展计划，当前版本使用基础生成皮肤，并已补充下述像素绘制工具。MCA 作为交互与数据组织参考，CharacterPortal 不增加 MCA 前置，也不直接使用其素材或实现。外观资源的缺失回退仍须保留原始人物元数据。
 
 #### 皮肤绘制补充
 

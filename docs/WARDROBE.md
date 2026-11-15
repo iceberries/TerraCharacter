@@ -18,7 +18,7 @@
 Minecraft 1.21.1 的 `pack.mcmeta`：
 
 ```json
-{"pack":{"pack_format":34,"description":"我的 TerraCharacter 服装"}}
+{"pack":{"pack_format":34,"description":"我的 CharacterPortal 服装"}}
 ```
 
 `coat.png` 必须是 **64×64 RGBA PNG**，按原版皮肤 UV 绘制。下面的 `coat.json` 示例仅替换躯干正面的基础层与外层；添加袖子、背面和侧面时，为各 UV 区域增加片段。`rect` 同时指定从 PNG 读取的位置与写入皮肤的位置，不能用裁剪后的衣服小图代替完整图集。
@@ -41,14 +41,14 @@ Minecraft 1.21.1 的 `pack.mcmeta`：
 ```json
 {
   "name":"休闲搭配",
-  "body":"terra_character:slim",
-  "hair":"terra_character:account",
+  "body":"character_portal:slim",
+  "hair":"character_portal:account",
   "parts":{"outerwear":"my_clothes:coat"},
   "colors":{"my_clothes:cloth":"82AACC"}
 }
 ```
 
-`hair` 显式写 `terra_character:account` 使用当前登录账号皮肤。部件自身的 `fragments.rect` 就是覆盖像素位置信息；整体预设还可通过本文末尾的 `regions` 指定染色部位范围。
+`hair` 显式写 `character_portal:account` 使用当前登录账号皮肤。部件自身的 `fragments.rect` 就是覆盖像素位置信息；整体预设还可通过本文末尾的 `regions` 指定染色部位范围。
 
 将文件夹放入游戏的 `resourcepacks` 目录，在“选项 → 资源包”启用，然后重新打开换装界面，在“外衣”分类中浏览“我的外衣”。当前汇流开发运行目录为 `ConfluenceOtherworld/run/resourcepacks`。也可打包成 ZIP，但 ZIP 根目录必须直接包含 `pack.mcmeta` 和 `assets`。修改文件后按 F3+T 重载资源；确认换装并保存人物后才保存选择。联机玩家需安装同一资源包。
 
@@ -76,8 +76,8 @@ Minecraft 1.21.1 的 `pack.mcmeta`：
   "name": "example.part.eyes",
   "slot": "eyes",
   "fragments": [
-    {"rect": [10, 12, 1, 1], "pixels": ["FFFFFFFF"], "tint": "terra_character:eyes"},
-    {"rect": [13, 12, 1, 1], "pixels": ["FFFFFFFF"], "tint": "terra_character:eyes"}
+    {"rect": [10, 12, 1, 1], "pixels": ["FFFFFFFF"], "tint": "character_portal:eyes"},
+    {"rect": [13, 12, 1, 1], "pixels": ["FFFFFFFF"], "tint": "character_portal:eyes"}
   ]
 }
 ```
@@ -106,23 +106,23 @@ Minecraft 1.21.1 的 `pack.mcmeta`：
 `assets/<namespace>/wardrobe/dyes/<path>.json` 定义原皮肤像素蒙版，资源包可覆盖同路径：
 
 ```json
-{"skin":"terra_character:fire_berry","channels":[
+{"skin":"character_portal:fire_berry","channels":[
   {"id":"example:hair","slot":"hair","reference":"B8BBD4","pixels":[8,9,10]}
 ]}
 ```
 
 `pixels` 为原始 slim 64×64 图集的线性索引 `y*64+x`，同时支持基础层和外层，通道之间不能重叠。wide 体型按基础皮肤相同 UV 转换映射。`reference` 为通道原色；未调色及恢复原色时完全保留原始像素。调色按参考色转换色相、饱和度、明度，保留各像素的明暗差异和 alpha。蒙版仅针对已有内置底图，不尝试自动识别任意 PNG 的语义部位。
 
-基础通道使用 `terra_character:base_<slot>`，避免旧存档中原有六个颜色字段改变默认皮肤。装备对应部件后改用该部件自己的片段染色通道。顺序为基础底图染色 → 换装片段 → 手绘修改；手绘覆盖始终优先，恢复原色不清除手绘。只保存颜色通道值，沿用现有存档和联机协议，无新增模型层。
+基础通道使用 `character_portal:base_<slot>`，避免旧存档中原有六个颜色字段改变默认皮肤。装备对应部件后改用该部件自己的片段染色通道。顺序为基础底图染色 → 换装片段 → 手绘修改；手绘覆盖始终优先，恢复原色不清除手绘。只保存颜色通道值，沿用现有存档和联机协议，无新增模型层。
 
 ## 整体预设
 
 ```json
 {
   "name": "example.preset.casual",
-  "body": "terra_character:slim",
-  "hair": "terra_character:fire_berry",
-  "colors": {"terra_character:skin": "DFAF88", "terra_character:eyes": "3377AA"},
+  "body": "character_portal:slim",
+  "hair": "character_portal:fire_berry",
+  "colors": {"character_portal:skin": "DFAF88", "character_portal:eyes": "3377AA"},
   "parts": {"eyes": "example:eyes", "outerwear": "example:coat"}
 }
 ```
@@ -151,7 +151,7 @@ body/hair 未指定时沿用默认 slim/fire_berry；colors 是 RRGGBB，parts �
 
 “保存为部件”会让玩家输入名称，并仅列出整个选区均属于的部位。部位依据当前染色范围和已装备部件的片段位置判断，自定义范围优先；跨部位或未分配的选区不能保存。可先用“部位框选”明确眼睛、嘴巴等范围，再框选保存，不能把眼睛像素任意保存为鞋子。校验包含矩形中的透明格，必要时缩小选区。
 
-保存立即生成独立部件 ID `terra_character:local/<UUID>`，以标准部件 JSON 写入当前游戏目录的 `terra_character/wardrobe/parts/<UUID>.json`，无需重载即可在对应分类的 3D 图库中选择。文件包含 slot、当前体型、原版图集像素位置、颜色及透明度；不会修改原资源或自动装备。取消人物编辑不会删除已明确保存的部件。重启或 F3+T 会重新加载本地部件。分享时可将 JSON 放入资源包的 `assets/terra_character/wardrobe/parts/local/`，保留文件名即可保持 ID；联机仍需其他客户端安装同样的资源，不自动传输。
+保存立即生成独立部件 ID `character_portal:local/<UUID>`，以标准部件 JSON 写入当前游戏目录的 `character_portal/wardrobe/parts/<UUID>.json`，无需重载即可在对应分类的 3D 图库中选择。文件包含 slot、当前体型、原版图集像素位置、颜色及透明度；不会修改原资源或自动装备。取消人物编辑不会删除已明确保存的部件。重启或 F3+T 会重新加载本地部件。分享时可将 JSON 放入资源包的 `assets/character_portal/wardrobe/parts/local/`，保留文件名即可保持 ID；联机仍需其他客户端安装同样的资源，不自动传输。
 
 绘制皮肤的工具下拉框选择“部位框选”，再选择像素所属部位。在当前身体面与编辑层上，左键拖框添加像素，右键拖框移除像素；重复框选可组成不连续区域。已有范围使用青色覆盖与金色描边，拖框预览添加为金色、移除为红色。支持单格、当前面清空、恢复整个部位的默认范围，以及独立的 32 步撤销/重做。显示全部时仍操作提示所示的编辑层。
 
@@ -166,7 +166,7 @@ body/hair 未指定时沿用默认 slim/fire_berry；colors 是 RRGGBB，parts �
 整体预设新增 `regions` 字段，键为部位名，值为原版 slim 64×64 图集像素索引数组 `y*64+x`，基础层与外层都可指定。例如：
 
 ```json
-{"name":"example.preset.casual","body":"terra_character:slim","hair":"terra_character:fire_berry",
+{"name":"example.preset.casual","body":"character_portal:slim","hair":"character_portal:fire_berry",
  "colors":{},"parts":{},"regions":{"eyes":[778,781],"mouth":[907,908]}}
 ```
 

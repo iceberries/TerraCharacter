@@ -3,9 +3,12 @@ plugins {
 	id 'net.neoforged.moddev'
 }
 
+// Its repositories are inherited below, so it has to be configured first.
+evaluationDependsOn(':ConfluenceOtherworld')
+
 version = mod_version + '+' + minecraft_version
 group = mod_group_id
-base.archivesName = 'TerraCharacter-neoforge'
+base.archivesName = 'CharacterPortal-neoforge'
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 java.withSourcesJar()
 
@@ -35,7 +38,7 @@ neoForge {
 		}
 		"${mod_id}" {
 			sourceSet(sourceSets.main)
-			if (providers.gradleProperty('permissionSmoke').orNull == 'true' || providers.gradleProperty('accountSkinSmoke').orNull == 'true' || providers.gradleProperty('integrationSmoke').orNull == 'true' || providers.gradleProperty('localSessionSmoke').orNull == 'true' || providers.gradleProperty('menuSmoke').orNull == 'true' || providers.gradleProperty('characterSmoke').orNull == 'true' || providers.gradleProperty('skinSmoke').orNull == 'true' || providers.gradleProperty('multiplayerSmoke').orNull == 'true') sourceSet(sourceSets.smokeTest)
+			if (providers.gradleProperty('permissionSmoke').orNull == 'true' || providers.gradleProperty('stateEnvironmentSmoke').orNull == 'true' || providers.gradleProperty('antiRageSmoke').orNull == 'true' || providers.gradleProperty('accountSkinSmoke').orNull == 'true' || providers.gradleProperty('integrationSmoke').orNull == 'true' || providers.gradleProperty('localSessionSmoke').orNull == 'true' || providers.gradleProperty('menuSmoke').orNull == 'true' || providers.gradleProperty('characterSmoke').orNull == 'true' || providers.gradleProperty('skinSmoke').orNull == 'true' || providers.gradleProperty('multiplayerSmoke').orNull == 'true') sourceSet(sourceSets.smokeTest)
 		}
 	}
 	runs {
@@ -44,40 +47,54 @@ neoForge {
 			if (withConfluence) gameDirectory = rootProject.project(':ConfluenceOtherworld').file('run')
 			if (providers.gradleProperty('permissionSmoke').orNull == 'true') {
 				gameDirectory = layout.buildDirectory.dir('permission-smoke-run').get().asFile
-				systemProperty 'terra_character.permission_smoke', 'true'
+				systemProperty 'character_portal.permission_smoke', 'true'
 			}
 			if (providers.gradleProperty('localSessionSmoke').orNull == 'true') {
 				gameDirectory = layout.buildDirectory.dir('local-session-smoke-run').get().asFile
-				systemProperty 'terra_character.local_session_smoke', 'true'
+				systemProperty 'character_portal.local_session_smoke', 'true'
 			}
 			if (providers.gradleProperty('integrationSmoke').orNull == 'true') {
 				gameDirectory = layout.buildDirectory.dir('integration-smoke-run').get().asFile
-				systemProperty 'terra_character.integration_smoke', 'true'
+				systemProperty 'character_portal.integration_smoke', 'true'
 			}
 			if (providers.gradleProperty('accountSkinSmoke').orNull == 'true') {
 				gameDirectory = layout.buildDirectory.dir('account-skin-smoke-run').get().asFile
-				systemProperty 'terra_character.account_skin_smoke', 'true'
+				systemProperty 'character_portal.account_skin_smoke', 'true'
 			}
 			if (providers.gradleProperty('menuSmoke').orNull == 'true') {
 				gameDirectory = layout.buildDirectory.dir('menu-smoke-run').get().asFile
-				systemProperty 'terra_character.menu_smoke', 'true'
+				systemProperty 'character_portal.menu_smoke', 'true'
 			}
 			programArguments.addAll '--username', 'Confluence'
 			if (providers.gradleProperty('characterSmoke').orNull == 'true') {
 				gameDirectory = layout.buildDirectory.dir('smoke-run').get().asFile
-				systemProperty 'terra_character.smoke', 'true'
+				systemProperty 'character_portal.smoke', 'true'
 			}
 			if (providers.gradleProperty('multiplayerSmoke').orNull == 'true') {
 				gameDirectory = layout.buildDirectory.dir('multiplayer-smoke-host').get().asFile
-				systemProperty 'terra_character.mp_smoke', 'host'
-				systemProperty 'terra_character.mp_launch', layout.buildDirectory.dir('moddev').get().asFile.absolutePath
+				systemProperty 'character_portal.mp_smoke', 'host'
+				systemProperty 'character_portal.mp_launch', layout.buildDirectory.dir('moddev').get().asFile.absolutePath
 			}
 			if (providers.gradleProperty('skinSmoke').orNull == 'true') {
 				gameDirectory = layout.buildDirectory.dir('skin-smoke-run').get().asFile
-				systemProperty 'terra_character.skin_smoke', 'true'
+				systemProperty 'character_portal.skin_smoke', 'true'
 			}
 		}
 		server { server() }
+		if (providers.gradleProperty('stateEnvironmentSmoke').orNull == 'true') {
+			stateEnvironmentTest {
+				type = 'gameTestServer'
+				gameDirectory = layout.buildDirectory.dir('state-environment-smoke-run').get().asFile
+				systemProperty 'neoforge.enabledGameTestNamespaces', 'character_portal_state'
+			}
+		}
+		if (providers.gradleProperty('antiRageSmoke').orNull == 'true') {
+			antiRageTest {
+				type = 'gameTestServer'
+				gameDirectory = layout.buildDirectory.dir('anti-rage-smoke-run').get().asFile
+				systemProperty 'neoforge.enabledGameTestNamespaces', 'character_portal'
+			}
+		}
 	}
 }
 
@@ -87,6 +104,13 @@ repositories {
 }
 
 dependencies {
+	if (providers.gradleProperty('antiRageSmoke').orNull == 'true') {
+		runtimeOnly files(providers.gradleProperty('betterExperienceJar').get())
+		runtimeOnly "software.bernie.geckolib:geckolib-neoforge-${minecraft_version}:${geckolib_version}"
+		runtimeOnly project(':Confluence-Magic-Lib')
+		runtimeOnly project(':TerraCurio')
+		runtimeOnly "top.theillusivec4.curios:curios-neoforge:${curios_version}"
+	}
 	compileOnly project(':ConfluenceOtherworld')
 	compileOnly project(':Confluence-Magic-Lib')
 	compileOnly project(':TerraCurio')

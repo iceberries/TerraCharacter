@@ -1,0 +1,10 @@
+{
+  "required": true,
+  "plugin": "org.confluence.character_portal.integration.ConfluenceMixinPlugin",
+  "minVersion": "0.8",
+  "package": "org.confluence.character_portal.compat.confluence.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": ["PlayerUtilsMixin", "SoftcorePacketMixin", "DifficultyMixin", "QuestResetMixin", "ManaMixin", "AttachmentHolderAccessor", "InitialItemsMixin", "InitialRewardsMixin"],
+  "client": ["client.HealthHudMixin"],
+  "injectors": {"defaultRequire": 1}
+}

@@ -1,0 +1,80 @@
+package org.confluence.character_portal.compat.confluence.integration;
+
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerPlayer;
+
+import org.confluence.mod.common.attachment.PlayerSpecialData;
+import org.confluence.mod.common.init.ModAttachmentTypes;
+import org.confluence.character_portal.api.integration.CharacterDataAdapter;
+import org.confluence.character_portal.integration.VanillaDataAdapter;
+
+import java.util.*;
+
+public final class SpecialDataAdapter implements CharacterDataAdapter {
+	private final Scope scope;
+
+	public SpecialDataAdapter(Scope scope) {
+		this.scope = scope;
+	}
+
+	@Override
+	public ResourceLocation id() {
+		return ResourceLocation.fromNamespaceAndPath(
+				"character_portal_confluence", scope == Scope.CHARACTER ? "quests" : "world_quests");
+	}
+
+	@Override
+	public int schemaVersion() {
+		return 1;
+	}
+
+	@Override
+	public Scope scope() {
+		return scope;
+	}
+
+	private CompoundTag select(CompoundTag tag) {
+		return VanillaDataAdapter.select(
+				tag,
+				scope == Scope.CHARACTER
+						? List.of("AnglerQuestCount", InitialItemsState.NBT_KEY)
+						: List.of("CompletedAnglerQuestDay"));
+	}
+
+	@Override
+	public CompoundTag capture(ServerPlayer player) {
+		return select(PlayerSpecialData.of(player).serializeNBT(player.registryAccess()));
+	}
+
+	@Override
+	public void restore(ServerPlayer player, CompoundTag data, int version) {
+		var state = PlayerSpecialData.of(player);
+		var base = state.serializeNBT(player.registryAccess());
+		base.merge(select(data));
+		// Existing character snapshots predate the receipt and have already entered the game.
+		// New snapshots always store an explicit false until the first completed welcome reward.
+		if (scope == Scope.CHARACTER && !data.contains(InitialItemsState.NBT_KEY))
+			base.putBoolean(InitialItemsState.NBT_KEY, true);
+		state.deserializeNBT(player.registryAccess(), base);
+	}
+
+	@Override
+	public void initialize(ServerPlayer player) {
+		if (scope == Scope.CHARACTER)
+			player.setData(ModAttachmentTypes.SPECIAL_DATA.get(), new PlayerSpecialData());
+	}
+
+	@Override
+	public Set<String> legacyAttachmentIds() {
+		return Set.of("confluence:special_data");
+	}
+
+	@Override
+	public Optional<CompoundTag> importLegacy(CompoundTag player) {
+		return Optional.of(
+				select(
+						player.getCompound("neoforge:attachments")
+								.getCompound("confluence:special_data")));
+	}
+}

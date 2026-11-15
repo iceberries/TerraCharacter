@@ -1,13 +1,13 @@
-# Terra Character 界面风格
+# Character Portal 界面风格
 
 参考汇流的成就页、图鉴、扩展背包、秘密种子选择页及选择按钮。成就页的深灰面板、多重像素描边、金色分类高亮作为人物模块的主风格；取色板与 RGB 色条保留本身的颜色含义。
 
 ## 复用素材
 
 - 原文件：`ConfluenceOtherworld/src/main/resources/assets/confluence/textures/gui/achievement.png`。
-- 内置副本：`assets/terra_character/textures/gui/confluence_achievement.png`。
+- 内置副本：`assets/character_portal/textures/gui/confluence_achievement.png`。
 - 副本与原图像素相同，未裁切或重绘。SHA-256：`F71F08F0BF7791DBD3C1C2D950D35E399FFE9B878F3D031A4B817080AFEEE19C`。
-- 素材来源、权利与许可沿用原项目；内置副本用于保持 Terra Character 独立安装，不需要加载汇流的类或资源命名空间。
+- 素材来源、权利与许可沿用原项目；内置副本用于保持 Character Portal 独立安装，不需要加载汇流的类或资源命名空间。
 
 `EditorUi` 通过九宫格取样保留边角与描边，对中间区域做伸缩，适配不同宽高：
 

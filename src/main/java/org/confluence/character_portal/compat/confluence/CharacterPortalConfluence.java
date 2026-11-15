@@ -1,0 +1,81 @@
+package org.confluence.character_portal.compat.confluence;
+
+import net.neoforged.bus.api.IEventBus;
+import net.neoforged.fml.loading.FMLEnvironment;
+import net.neoforged.neoforge.common.NeoForge;
+
+import org.confluence.mod.common.attachment.*;
+import org.confluence.mod.common.init.ModAttachmentTypes;
+import org.confluence.character_portal.api.integration.CharacterDataAdapter.Scope;
+import org.confluence.character_portal.compat.confluence.integration.*;
+import org.confluence.character_portal.compat.confluence.world.ConfluenceWorldOptions;
+import org.confluence.character_portal.compat.confluence.world.WorldEvents;
+import org.confluence.character_portal.integration.AdapterRegistry;
+
+/**
+ * Optional integration bootstrap registering Confluence ownership adapters and world-option
+ * validation.
+ */
+public final class CharacterPortalConfluence {
+	public static final String MODID = "character_portal_confluence";
+
+	public static void initialize(IEventBus bus) {
+		AdapterRegistry.registerWorldProvider(
+				MODID,
+				settings -> {
+					ConfluenceWorldOptions.readFrom(settings).orElseThrow();
+					for (String key : settings.extensions().keySet())
+						if (key.startsWith(MODID + ":")
+								&& !key.equals(ConfluenceWorldOptions.DIFFICULTY_KEY)
+								&& !key.equals(ConfluenceWorldOptions.EVIL_KEY))
+							throw new IllegalArgumentException("Unknown option: " + key);
+				});
+		AdapterRegistry.register(
+				new AttachmentAdapter<>("mana", ModAttachmentTypes.MANA_STORAGE, ManaStorage::new));
+		AdapterRegistry.register(
+				new AttachmentAdapter<>("soul", ModAttachmentTypes.SOUL_STORAGE, SoulStorage::new));
+		AdapterRegistry.register(
+				new AttachmentAdapter<>(
+						"soulcerer_skill",
+						ModAttachmentTypes.SOUL_SKILL_STORAGE,
+						SoulSkillStorage::new));
+		AdapterRegistry.register(
+				new AttachmentAdapter<>(
+						"ever_beneficial",
+						ModAttachmentTypes.EVER_BENEFICIAL,
+						EverBeneficial::new));
+		AdapterRegistry.register(
+				new AttachmentAdapter<>(
+						"extra_inventory",
+						ModAttachmentTypes.EXTRA_INVENTORY,
+						() -> new ExtraInventory(true)));
+		AdapterRegistry.register(
+				new BankAdapter<>(
+						"piggy_bank",
+						ModAttachmentTypes.PIGGY_BANK,
+						PlayerPiggyBankContainer::new));
+		AdapterRegistry.register(
+				new BankAdapter<>("safe", ModAttachmentTypes.SAFE, PlayerSafeContainer::new));
+		AdapterRegistry.register(
+				new BankAdapter<>(
+						"void_vault",
+						ModAttachmentTypes.VOID_VAULT,
+						PlayerVoidVaultContainer::new));
+		AdapterRegistry.register(new SpecialDataAdapter(Scope.CHARACTER));
+		AdapterRegistry.register(new SpecialDataAdapter(Scope.CHARACTER_WORLD));
+		AdapterRegistry.register(new CuriosAdapter());
+		NeoForge.EVENT_BUS.register(WorldEvents.class);
+		NeoForge.EVENT_BUS.register(CharacterStatisticsIntegration.class);
+		if (FMLEnvironment.dist.isClient()) {
+			try {
+				Class.forName(
+								"org.confluence.character_portal.compat.confluence.client.ClientBootstrap")
+						.getMethod("initialize", IEventBus.class)
+						.invoke(null, bus);
+			} catch (ReflectiveOperationException ex) {
+				throw new IllegalStateException(
+						"Cannot initialize Confluence character client integration", ex);
+			}
+		}
+	}
+}

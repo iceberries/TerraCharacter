@@ -6,10 +6,10 @@
 
 已被旧版本错误保存为关闭的世界不会自动改为开启：现有记录不足以可靠判断当时的选择。需要修复时，应先备份，再由玩家明确修改指定世界。
 
-专项检查只使用 `TerraCharacter/build/permission-smoke-run`。覆盖实际创建界面的显式开关与创造模式默认值、原生创建按钮、开启与关闭作弊世界的权限和指令树、保存重进、同一人物切换世界，以及非房主账号不继承房主权限。
+专项检查只使用 `CharacterPortal/build/permission-smoke-run`。覆盖实际创建界面的显式开关与创造模式默认值、原生创建按钮、开启与关闭作弊世界的权限和指令树、保存重进、同一人物切换世界，以及非房主账号不继承房主权限。
 
 ```powershell
-.\gradlew.bat :TerraCharacter:runClient -PpermissionSmoke=true -PwithConfluence=true --offline --no-daemon
+.\gradlew.bat :CharacterPortal:runClient -PpermissionSmoke=true -PwithConfluence=true --offline --no-daemon
 ```
 
 结果写入隔离目录的 `permission-result.txt`。测试代码不打入发行 Jar。

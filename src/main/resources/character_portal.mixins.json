@@ -1,0 +1,35 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "org.confluence.character_portal.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "AttachmentTypeAccessor",
+    "AttachmentStateAccessor",
+    "PlayerListMixin",
+    "PlayerDeathMixin",
+    "RespawnMixin",
+    "RespawnPacketMixin",
+    "ServerLifecycleMixin",
+    "ConfigurationDisconnectMixin",
+    "compat.CosmeticArmorInventoryMixin"
+  ],
+  "client": [
+    "client.IntegratedPlayerListMixin",
+    "client.CreateWorldMixin",
+    "client.PlayerSkinMixin",
+    "client.WorldOpenMixin",
+    "client.WorldStarsMixin",
+    "client.WorldStarEntryMixin",
+    "client.LanMixin",
+    "client.HeartMixin",
+    "client.MultiplayerLeaveMixin",
+    "client.LocalDisconnectMixin",
+    "client.ClientStopMixin",
+    "client.PehkuiPreviewMixin",
+    "client.RelicsPostEffectsMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

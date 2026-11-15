@@ -1,0 +1,9 @@
+{
+  "required": true,
+  "plugin": "org.confluence.character_portal.compat.better_experience.BetterExperienceMixinPlugin",
+  "minVersion": "0.8",
+  "package": "org.confluence.character_portal.compat.better_experience.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": ["AntiRageEventsMixin"],
+  "injectors": {"defaultRequire": 1}
+}

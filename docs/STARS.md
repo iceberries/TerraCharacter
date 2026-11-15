@@ -6,8 +6,8 @@
 
 偏好文件位于当前游戏目录：
 
-- `terra_character/stars/characters.json`，以人物 UUID 标识。
-- `terra_character/stars/worlds.json`，以世界存档文件夹标识，世界改显示名称不会丢失星标。
+- `character_portal/stars/characters.json`，以人物 UUID 标识。
+- `character_portal/stars/worlds.json`，以世界存档文件夹标识，世界改显示名称不会丢失星标。
 
 星标属于本机界面偏好，不修改人物／世界存档，不参与联机同步。世界选择沿用原版界面及汇流的图标等扩展，只增加行内按钮和排序；世界数据工具列表共用世界星标队列。
 

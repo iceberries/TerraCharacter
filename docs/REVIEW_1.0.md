@@ -1,6 +1,6 @@
-# TerraCharacter 1.0 审查
+# CharacterPortal 1.0 审查
 
-范围为 TerraCharacter 核心、内置汇流兼容代码及其测试。汇流等其他子项目不在本次修改范围内。
+范围为 CharacterPortal 核心、内置汇流兼容代码及其测试。汇流等其他子项目不在本次修改范围内。
 
 ## 修复记录
 

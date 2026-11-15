@@ -6,12 +6,12 @@
 
 存在中断会话时，额外提供恢复会话卡片；回收站使用同款轮盘提供恢复、永久删除与返回。删除、永久删除和会话恢复保留确认步骤。
 
-轮盘默认提供代码绘制的像素图标，后续可用资源包覆盖 `assets/terra_character/textures/gui/sprites/actions/<名称>.png`，不需要修改 Java。名称为 `create`、`play`、`trash`、`delete`、`back`、`restore`、`recover`。PNG 可使用透明背景，图像由 GUI 精灵图集缩放到卡片图标区域，资源重载后生效。
+轮盘默认提供代码绘制的像素图标，后续可用资源包覆盖 `assets/character_portal/textures/gui/sprites/actions/<名称>.png`，不需要修改 Java。名称为 `create`、`play`、`trash`、`delete`、`back`、`restore`、`recover`。PNG 可使用透明背景，图像由 GUI 精灵图集缩放到卡片图标区域，资源重载后生效。
 
-菜单专项检查使用隔离目录，仅测试轮盘、翻页、人物预览和布局，结果与截图位于 `TerraCharacter/build/menu-smoke-run`：
+菜单专项检查使用隔离目录，仅测试轮盘、翻页、人物预览和布局，结果与截图位于 `CharacterPortal/build/menu-smoke-run`：
 
 ```powershell
-$env:TERRA_CHARACTER_CAROUSEL_ONLY = 'true'
-.\gradlew.bat :TerraCharacter:runClient -PwithConfluence=true -PmenuSmoke=true --offline --no-daemon
-Remove-Item Env:TERRA_CHARACTER_CAROUSEL_ONLY
+$env:CHARACTER_PORTAL_CAROUSEL_ONLY = 'true'
+.\gradlew.bat :CharacterPortal:runClient -PwithConfluence=true -PmenuSmoke=true --offline --no-daemon
+Remove-Item Env:CHARACTER_PORTAL_CAROUSEL_ONLY
 ```
