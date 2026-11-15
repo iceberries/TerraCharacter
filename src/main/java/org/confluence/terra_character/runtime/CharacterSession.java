@@ -8,6 +8,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.GameType;
+import net.minecraft.world.level.GameRules;
 import net.minecraft.world.level.portal.DimensionTransition;
 import net.minecraft.world.level.storage.LevelResource;
 
@@ -370,12 +371,16 @@ public final class CharacterSession {
 
 	public static boolean keepInventory(Player player, boolean fallback) {
 		var session = of(player);
-		return session == null ? fallback : session.keepInventory();
+		if (session == null) return fallback;
+		return switch (session.profile.difficulty()) {
+			case SURVIVAL -> fallback;
+			default -> session.keepInventory();
+		};
 	}
 
 	public static boolean hardcore(Player player) {
 		var session = of(player);
-		return session != null && session.profile.difficulty() == CharacterDifficulty.HARDCORE;
+		return session != null && session.profile.difficulty().isHardcore();
 	}
 
 	public CompoundTag load(ServerPlayer player) throws IOException {
@@ -492,7 +497,8 @@ public final class CharacterSession {
 			if (vanilla.contains("Health"))
 				player.setHealth(
 						Math.max(1, Math.min(vanilla.getFloat("Health"), player.getMaxHealth())));
-			player.setGameMode(GameType.SURVIVAL);
+			player.setGameMode(profile.difficulty() == CharacterDifficulty.CREATIVE
+					? GameType.CREATIVE : GameType.SURVIVAL);
 			JourneyController.apply(player);
 			ProfileStatePayload.send(player);
 			save(player);
@@ -563,7 +569,7 @@ public final class CharacterSession {
 	}
 
 	public void die(ServerPlayer player) throws IOException {
-		if (profile.difficulty() == CharacterDifficulty.HARDCORE) {
+		if (profile.difficulty().isHardcore()) {
 			var tombstone = new CompoundTag();
 			tombstone.putUUID("Id", profile.id());
 			tombstone.putLong("DiedAt", System.currentTimeMillis());
@@ -580,8 +586,11 @@ public final class CharacterSession {
 			save(player);
 			ProfileStatePayload.send(player);
 		}
+		boolean keep =
+				keepInventory(
+						player, player.level().getGameRules().getBoolean(GameRules.RULE_KEEPINVENTORY));
 		for (var adapter : AdapterRegistry.all())
-			if (isAdapterActive(adapter)) adapter.onDeath(player, keepInventory());
+			if (isAdapterActive(adapter)) adapter.onDeath(player, keep);
 	}
 
 	public Path progressPath(String kind) throws IOException {

@@ -17,7 +17,7 @@ public record CharacterProfile(
 		Objects.requireNonNull(difficulty, "difficulty");
 		Objects.requireNonNull(appearance, "appearance");
 		Objects.requireNonNull(status, "status");
-		if (status == Status.DEAD && difficulty != CharacterDifficulty.HARDCORE) {
+		if (status == Status.DEAD && !difficulty.isHardcore()) {
 			throw new IllegalArgumentException("Only hardcore characters can be permanently dead");
 		}
 	}

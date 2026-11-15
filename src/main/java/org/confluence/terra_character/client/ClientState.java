@@ -38,6 +38,6 @@ public final class ClientState {
 
 	public static boolean hardcore() {
 		var p = profile();
-		return p != null && p.difficulty() == CharacterDifficulty.HARDCORE;
+		return p != null && p.difficulty().isHardcore();
 	}
 }

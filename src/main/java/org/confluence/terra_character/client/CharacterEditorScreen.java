@@ -3,6 +3,7 @@ package org.confluence.terra_character.client;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.*;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.network.chat.Component;
 import net.neoforged.fml.ModList;
 
 import org.confluence.terra_character.api.model.*;
@@ -44,7 +45,7 @@ public final class CharacterEditorScreen extends ProfileScreen {
 		this.existing = existing;
 		this.importer = importer;
 		draft = existing == null ? ClientProfiles.defaults() : existing.appearance();
-		difficulty = existing == null ? CharacterDifficulty.SOFTCORE : existing.difficulty();
+		difficulty = existing == null ? defaultDifficulty() : existing.difficulty();
 		nameValue = existing == null ? "" : existing.name();
 		if (existing == null) {
 			skinStatus = "skin.account.loading";
@@ -53,8 +54,17 @@ public final class CharacterEditorScreen extends ProfileScreen {
 	}
 
 	public CharacterEditorScreen suggested(CharacterDifficulty value) {
-		difficulty = value;
+		difficulty = ModList.get().isLoaded("confluence") ? value
+				: value.isHardcore() ? CharacterDifficulty.VANILLA_HARDCORE : CharacterDifficulty.SURVIVAL;
 		return this;
+	}
+
+	private static CharacterDifficulty defaultDifficulty() {
+		return ModList.get().isLoaded("confluence") ? CharacterDifficulty.SOFTCORE : CharacterDifficulty.SURVIVAL;
+	}
+
+	private Component difficultyHelp() {
+		return ClientProfiles.text("difficulty.help." + difficulty.name().toLowerCase(Locale.ROOT));
 	}
 
 	@Override
@@ -67,44 +77,30 @@ public final class CharacterEditorScreen extends ProfileScreen {
 		name.setValue(nameValue);
 		name.setResponder(value -> nameValue = value);
 		addRenderableWidget(name);
-		boolean difficultyAvailable = ModList.get().isLoaded("confluence");
-		difficultyControl = null;
-		if (difficultyAvailable) {
-			difficultyControl =
-					addRenderableWidget(
-							new DiscreteSlider(
-									x,
-									68,
-									half,
-									CharacterDifficulty.values().length,
-									difficulty.ordinal(),
-									i -> ClientProfiles.difficulty(CharacterDifficulty.values()[i]),
-									i -> {
-										difficulty = CharacterDifficulty.values()[i];
-										if (difficultyControl != null)
-											difficultyControl.setTooltip(
-													Tooltip.create(
-															ClientProfiles.text(
-																	"difficulty.help."
-																			+ difficulty
-																					.name()
-																					.toLowerCase(
-																							Locale
-																									.ROOT))));
-									}));
-			difficultyControl.active = existing == null;
-			difficultyControl.setTooltip(
-					Tooltip.create(
-							ClientProfiles.text(
-									"difficulty.help."
-											+ difficulty.name().toLowerCase(Locale.ROOT))));
+		var difficulties = new ArrayList<CharacterDifficulty>();
+		if (ModList.get().isLoaded("confluence")) {
+			difficulties.addAll(List.of(CharacterDifficulty.JOURNEY, CharacterDifficulty.SOFTCORE,
+					CharacterDifficulty.MEDIUMCORE, CharacterDifficulty.HARDCORE));
+		} else {
+			difficulties.addAll(List.of(CharacterDifficulty.CREATIVE, CharacterDifficulty.SURVIVAL,
+					CharacterDifficulty.VANILLA_HARDCORE));
 		}
+		if (!difficulties.contains(difficulty)) difficulties.add(difficulty);
+		difficultyControl = addRenderableWidget(new DiscreteSlider(
+				x, 68, half, difficulties.size(), difficulties.indexOf(difficulty),
+				i -> ClientProfiles.difficulty(difficulties.get(i)),
+				i -> {
+					difficulty = difficulties.get(i);
+					difficultyControl.setTooltip(Tooltip.create(difficultyHelp()));
+				}));
+		difficultyControl.active = existing == null;
+		difficultyControl.setTooltip(Tooltip.create(difficultyHelp()));
 		addRenderableWidget(
 				OptionDropdown.button(
 						this,
-						difficultyAvailable ? x + half + 6 : x,
+						x + half + 6,
 						68,
-						difficultyAvailable ? w - half - 6 : w,
+						w - half - 6,
 						List.of("terra_character:slim", "terra_character:wide"),
 						draft.bodyStyle(),
 						value ->

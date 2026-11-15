@@ -9,14 +9,17 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.*;
+import net.minecraft.world.level.GameType;
 import net.neoforged.neoforge.network.configuration.ICustomConfigurationTask;
 import net.neoforged.neoforge.network.event.RegisterConfigurationTasksEvent;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import net.neoforged.neoforge.network.registration.NetworkRegistry;
 
 import org.confluence.terra_character.TerraCharacter;
+import org.confluence.terra_character.api.model.CharacterDifficulty;
 import org.confluence.terra_character.client.MultiplayerClient;
 import org.confluence.terra_character.runtime.CharacterSession;
+import org.confluence.terra_character.storage.RemoteCharacters;
 
 import java.io.IOException;
 import java.util.*;
@@ -163,6 +166,13 @@ public final class CharacterHandshake {
 													listener.getOwner());
 							if (denied != null) {
 								context.disconnect(denied);
+								return;
+							}
+							var profile = RemoteCharacters.metadata(portable.getCompound("Profile"));
+							if (profile.difficulty() == CharacterDifficulty.CREATIVE
+									&& server.getDefaultGameType() != GameType.CREATIVE
+									&& server.getProfilePermissions(listener.getOwner()) < 2) {
+								context.disconnect(Component.translatable("terra_character.network.creative_denied"));
 								return;
 							}
 							CharacterSession.prepareRemote(

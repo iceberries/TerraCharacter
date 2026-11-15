@@ -12,7 +12,6 @@ import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipPositione
 import net.minecraft.client.gui.screens.inventory.tooltip.MenuTooltipPositioner;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
-import net.neoforged.fml.ModList;
 
 import org.confluence.terra_character.TerraCharacter;
 import org.confluence.terra_character.api.model.*;
@@ -468,10 +467,7 @@ public final class CharacterSelectionScreen extends ProfileScreen {
 	}
 
 	private static Component profileInfo(CharacterProfile profile) {
-		var info =
-				ModList.get().isLoaded("confluence")
-						? ClientProfiles.difficulty(profile.difficulty()).copy()
-						: Component.empty();
+		var info = ClientProfiles.difficulty(profile.difficulty()).copy();
 		if (profile.status() == CharacterProfile.Status.DEAD)
 			info.append(ClientProfiles.text("dead"));
 		return info;

@@ -116,7 +116,7 @@ public final class LegacyImporter {
 					world.hardcore() && source.player().getFloat("Health") <= 0
 							? CharacterProfile.Status.DEAD
 							: CharacterProfile.Status.ACTIVE;
-			if (world.hardcore() && difficulty != CharacterDifficulty.HARDCORE)
+			if (world.hardcore() && !difficulty.isHardcore())
 				throw new IOException("A hardcore source must remain hardcore");
 			var profile =
 					new CharacterProfile(UUID.randomUUID(), name, difficulty, appearance, status);
