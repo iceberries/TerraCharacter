@@ -4,9 +4,11 @@ import com.mojang.blaze3d.platform.NativeImage;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Screenshot;
+import net.minecraft.client.gui.components.AbstractSliderButton;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.components.ObjectSelectionList;
 import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.core.registries.Registries;
@@ -24,7 +26,8 @@ import org.confluence.character_portal.api.model.*;
 import org.confluence.character_portal.client.*;
 import org.confluence.character_portal.runtime.CharacterSession;
 import org.confluence.character_portal.service.SkinLayout;
-import org.confluence.character_portal.service.SkinLayout.*;
+import org.confluence.character_portal.service.SkinLayout.Layer;
+import org.lwjgl.glfw.GLFW;
 
 import java.nio.file.Files;
 import java.util.UUID;
@@ -36,7 +39,7 @@ import java.util.concurrent.CompletableFuture;
  */
 @EventBusSubscriber(modid = CharacterPortal.MODID, value = Dist.CLIENT)
 public final class SkinPaintSmokeTest {
-	private static int stage, ticks, delay;
+	private static int stage, ticks, delay, blueWithOuter;
 	private static boolean finished;
 	private static CharacterProfile person;
 	private static SkinPaint expected;
@@ -54,15 +57,20 @@ public final class SkinPaintSmokeTest {
 			if (stage == 0 && mc.getOverlay() == null && ticks > 60) {
 				Files.writeString(
 						mc.gameDirectory.toPath().resolve("skin-result.txt"), "RUNNING\n");
+				var bundled = WardrobeResources.presets().stream()
+						.filter(preset -> preset.id().equals("character_portal:default"))
+						.findFirst()
+						.orElseThrow(() -> new AssertionError("Bundled fire_berry preset is available"))
+						.appearance();
 				person =
 						new CharacterProfile(
 								UUID.randomUUID(),
 								"Skin Painter",
 								CharacterDifficulty.SOFTCORE,
-								ClientProfiles.defaults(),
+								bundled,
 								CharacterProfile.Status.ACTIVE);
 				ClientProfiles.store().create(person);
-				verifyImages();
+				verifyImages(bundled);
 				mc.options.renderDistance().set(2);
 				mc.options.simulationDistance().set(5);
 				mc.getWindow().setWindowed(854, 480);
@@ -97,31 +105,37 @@ public final class SkinPaintSmokeTest {
 			} else if (stage == 2 && ++delay > 15) {
 				require(mc.screen instanceof SkinEditorScreen, "Paint entry opens editor");
 				color("E34C55");
-				stroke(Part.HEAD, Face.FRONT, false, 0, 0, 7, 7, 0);
+				stroke(0, 0, 7, 7, 0);
 				mc.screen.resize(
 						mc, mc.screen.width, mc.screen.height); // draft survives widget rebuild
 				stage = 20;
 				delay = 0;
 			} else if (stage == 20 && ++delay > 15) {
 				shot("skin-base.png");
-				press("skin.layer.base");
+				selectOption("skin.layer.base", "skin.layer.outer", 1);
 				color("1155EE");
-				stroke(Part.HEAD, Face.FRONT, false, 0, 0, 7, 7, 0);
-				stroke(Part.HEAD, Face.FRONT, false, 0, 0, 0, 0, 1); // erase only outer
+				stroke(0, 0, 7, 7, 0);
+				stroke(0, 0, 0, 0, 1); // erase only outer
 				press("skin.undo");
 				press("skin.redo");
-				press("skin.reset");
+				press("skin.reset.short");
 				press("skin.undo");
+				selectOption("skin.layer.outer", "skin.layer.all", 2);
 				stage = 3;
 				delay = 0;
 			} else if (stage == 3 && ++delay > 15) {
-				verifyOuterPreview(true);
+				blueWithOuter = previewBluePixels("skin.layer.all");
 				shot("skin-outer.png");
+				selectOption("skin.layer.all", "skin.layer.base", 0);
 				press("skin.outer.show");
 				stage = 21;
 				delay = 0;
 			} else if (stage == 21 && ++delay > 15) {
-				verifyOuterPreview(false);
+				int blueWithoutOuter = previewBluePixels("skin.outer.hide");
+				require(
+						blueWithOuter - blueWithoutOuter > 10,
+						"Outer paint is visible before hiding the preview layer ("
+								+ blueWithOuter + " vs " + blueWithoutOuter + " pixels)");
 				shot("skin-outer-hidden.png");
 				press("skin.outer.hide");
 				press("skin.apply");
@@ -134,7 +148,7 @@ public final class SkinPaintSmokeTest {
 								.isEmpty(),
 						"Apply does not persist before character save");
 				press("skin.edit");
-				press("skin.reset");
+				press("skin.reset.short");
 				press("cancel"); // cancel base reset
 				press("save");
 				person = ClientProfiles.store().find(person.id()).orElseThrow();
@@ -149,15 +163,13 @@ public final class SkinPaintSmokeTest {
 						expected.pixel(47, 15) == 0xFF1155EE,
 						"Outer stroke survives undo/redo/reset/cancel");
 				mc.setScreen(new CharacterEditorScreen(new TitleScreen(), person, null));
-				press("body.slim");
-				press("body.wide");
+				selectOption("body.slim", "body.wide", 1);
+				selectOption("body.wide", "body.slim", 0);
 				press("skin.edit");
-				press("skin.part.head");
-				press("skin.part.body"); // slim right arm
-				press("skin.size", 1);
-				press("skin.size", 2); // size 3
+				selectOption("skin.part.head", "skin.part.right_arm", 2);
+				setLargeBrush();
 				color("22AA66");
-				stroke(Part.RIGHT_ARM, Face.FRONT, true, 0, 0, 2, 11, 0);
+				stroke(0, 0, 2, 11, 0);
 				stage = 4;
 				delay = 0;
 			} else if (stage == 4 && ++delay > 15) {
@@ -181,7 +193,7 @@ public final class SkinPaintSmokeTest {
 								"Narrow layout widget bounds");
 					}
 				color("FFFFFF");
-				stroke(Part.RIGHT_ARM, Face.FRONT, true, 0, 0, 0, 0, 0);
+				stroke(0, 0, 0, 0, 0);
 				press("skin.undo");
 				shot("skin-narrow.png");
 				press("skin.apply");
@@ -327,18 +339,48 @@ public final class SkinPaintSmokeTest {
 		if (!test) throw new AssertionError(message);
 	}
 
-	private static void press(String key, Object... args) {
-		var text = ClientProfiles.text(key, args).getString();
-		var button =
-				Minecraft.getInstance().screen.children().stream()
-						.filter(
-								w ->
-										w instanceof Button b
-												&& b.getMessage().getString().equals(text))
-						.findFirst()
-						.orElseThrow(() -> new AssertionError("Button missing: " + text));
-		require(((Button) button).active, "Button active: " + text);
-		((Button) button).onPress();
+	private static Button button(String label) {
+		return Minecraft.getInstance().screen.children().stream()
+				.filter(Button.class::isInstance)
+				.map(Button.class::cast)
+				.filter(button -> button.getMessage().getString().equals(label))
+				.findFirst()
+				.orElseThrow(() -> new AssertionError("Button missing: " + label));
+	}
+
+	private static void press(String key) {
+		var button = button(ClientProfiles.text(key).getString());
+		require(button.active, "Button active: " + button.getMessage());
+		button.onPress();
+	}
+
+	private static void selectOption(String currentKey, String nextKey, int row) {
+		var mc = Minecraft.getInstance();
+		var editor = mc.screen;
+		button(ClientProfiles.text(currentKey).getString() + " ▾").onPress();
+		var options = mc.screen.children().stream()
+				.filter(ObjectSelectionList.class::isInstance)
+				.map(AbstractWidget.class::cast)
+				.findFirst()
+				.orElseThrow();
+		mc.screen.mouseClicked(options.getX() + 12, options.getY() + row * 24 + 12, 0);
+		require(mc.screen == editor, "Choosing an option returns to the editor");
+		button(ClientProfiles.text(nextKey).getString() + " ▾");
+	}
+
+	private static void setLargeBrush() {
+		var current = ClientProfiles.text("skin.size", 1).getString();
+		var size = Minecraft.getInstance().screen.children().stream()
+				.filter(AbstractSliderButton.class::isInstance)
+				.map(AbstractSliderButton.class::cast)
+				.filter(slider -> slider.getMessage().getString().equals(current))
+				.findFirst()
+				.orElseThrow();
+		size.keyPressed(GLFW.GLFW_KEY_RIGHT, 0, 0);
+		size.keyPressed(GLFW.GLFW_KEY_RIGHT, 0, 0);
+		require(
+				size.getMessage().getString().equals(ClientProfiles.text("skin.size", 3).getString()),
+				"Brush slider can select a three-pixel brush");
 	}
 
 	private static void color(String rgb) {
@@ -350,20 +392,12 @@ public final class SkinPaintSmokeTest {
 				.setValue(rgb);
 	}
 
-	private static void stroke(
-			Part part, Face face, boolean slim, int x0, int y0, int x1, int y1, int button) {
+	private static void stroke(int x0, int y0, int x1, int y1, int button)
+			throws ReflectiveOperationException {
 		var screen = Minecraft.getInstance().screen;
-		var r = SkinLayout.region(part, face, Layer.BASE, slim);
-		boolean wide = screen.width >= 416;
-		int cw = wide ? 156 : 110;
-		int zoom =
-				Math.max(
-						1,
-						Math.min(
-								(cw - 12) / r.width(),
-								Math.max(12, screen.height - 112) / r.height()));
-		int x = screen.width / 2 - (wide ? 200 : 152) + (cw - r.width() * zoom) / 2,
-				y = 64 + (Math.max(12, screen.height - 112) - r.height() * zoom) / 2;
+		int zoom = canvasCoordinate("zoom");
+		int x = canvasCoordinate("canvasX");
+		int y = canvasCoordinate("canvasY");
 		screen.mouseClicked(x + (x0 + 0.5) * zoom, y + (y0 + 0.5) * zoom, button);
 		screen.mouseDragged(
 				x + (x1 + 0.5) * zoom,
@@ -374,45 +408,47 @@ public final class SkinPaintSmokeTest {
 		screen.mouseReleased(x + (x1 + 0.5) * zoom, y + (y1 + 0.5) * zoom, button);
 	}
 
+	private static int canvasCoordinate(String name) throws ReflectiveOperationException {
+		var method = SkinEditorScreen.class.getDeclaredMethod(name);
+		method.setAccessible(true);
+		return (Integer) method.invoke(Minecraft.getInstance().screen);
+	}
+
 	private static void shot(String name) {
 		var mc = Minecraft.getInstance();
 		Screenshot.grab(mc.gameDirectory, name, mc.getMainRenderTarget(), c -> {});
 	}
 
-	private static void verifyOuterPreview(boolean visible) {
+	private static int previewBluePixels(String toggleKey) {
 		var mc = Minecraft.getInstance();
 		var screen = mc.screen;
+		var toggle = button(ClientProfiles.text(toggleKey).getString());
 		try (var image = Screenshot.takeScreenshot(mc.getMainRenderTarget())) {
 			double sx = image.getWidth() / (double) screen.width,
 					sy = image.getHeight() / (double) screen.height;
-			int blue = 0, left = screen.width / 2 - 200;
-			for (int y = (int) (87 * sy); y < (int) (113 * sy); y++)
-				for (int x = (int) ((left + 324) * sx); x < (int) ((left + 353) * sx); x++) {
+			int blue = 0;
+			for (int y = (int) (116 * sy); y < (int) ((screen.height - 74) * sy); y++) {
+				for (int x = (int) (toggle.getX() * sx);
+						x < (int) ((toggle.getX() + toggle.getWidth()) * sx); x++) {
 					int pixel = CharacterSkins.swapRedBlue(image.getPixelRGBA(x, y));
 					int r = (pixel >>> 16) & 255, g = (pixel >>> 8) & 255, b = pixel & 255;
 					if (b > r * 2 && b > g * 1.8) blue++;
 				}
-			require(
-					visible ? blue > 10 : blue <= 10,
-					"Outer visibility matches preview toggle (visible="
-							+ visible
-							+ ", pixels="
-							+ blue
-							+ ")");
+			}
+			return blue;
 		}
 	}
 
-	private static void verifyImages() throws Exception {
-		var defaults = ClientProfiles.defaults();
+	private static void verifyImages(CharacterAppearance bundled) throws Exception {
 		require(
-				defaults.bodyStyle().endsWith(":slim") && CharacterSkins.bundled(defaults),
-				"New characters use bundled fire_berry slim skin");
+				bundled.bodyStyle().endsWith(":slim") && CharacterSkins.bundled(bundled),
+				"The bundled fire_berry preset uses its slim skin");
 		try (var input =
 						Minecraft.getInstance()
 								.getResourceManager()
 								.open(CharacterSkins.DEFAULT_TEXTURE);
 				var original = NativeImage.read(input);
-				var rendered = CharacterSkins.image(defaults)) {
+				var rendered = CharacterSkins.image(bundled)) {
 			int outerPixels = 0, outerX = -1, outerY = -1;
 			for (int y = 0; y < 64; y++)
 				for (int x = 0; x < 64; x++) {
@@ -437,9 +473,9 @@ public final class SkinPaintSmokeTest {
 			try (var edited =
 					CharacterSkins.image(
 							new CharacterAppearance(
-									defaults.bodyStyle(),
-									defaults.hairStyle(),
-									defaults.colors(),
+									bundled.bodyStyle(),
+									bundled.hairStyle(),
+									bundled.colors(),
 									new SkinPaint(erase)))) {
 				require(
 						edited.getPixelRGBA(outerX, outerY) == 0,
@@ -452,7 +488,7 @@ public final class SkinPaintSmokeTest {
 		try (var wide =
 				CharacterSkins.image(
 						new CharacterAppearance(
-								"character_portal:wide", defaults.hairStyle(), defaults.colors()))) {
+								"character_portal:wide", bundled.hairStyle(), bundled.colors()))) {
 			for (int y = 0; y < 64; y++)
 				for (int x = 0; x < 64; x++)
 					if (SkinLayout.contains(Layer.BASE, false, x, y))

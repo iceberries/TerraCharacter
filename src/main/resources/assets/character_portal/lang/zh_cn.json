@@ -21,6 +21,7 @@
   "character_portal.page": "第 %s / %s 页",
   "character_portal.trash.empty": "人物回收站为空",
   "character_portal.menu": "人物与世界",
+  "character_portal.settings.title": "人物传送门设置",
   "character_portal.characters": "选择人物",
   "character_portal.worlds": "选择世界",
   "character_portal.create": "创建人物",

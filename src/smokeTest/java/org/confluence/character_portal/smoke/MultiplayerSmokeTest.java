@@ -2,6 +2,7 @@ package org.confluence.character_portal.smoke;
 
 import net.minecraft.client.*;
 import net.minecraft.client.gui.components.AbstractButton;
+import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.*;
 import net.minecraft.client.multiplayer.ServerData;
@@ -26,6 +27,7 @@ import org.confluence.character_portal.api.model.*;
 import org.confluence.character_portal.client.*;
 import org.confluence.character_portal.runtime.*;
 import org.confluence.character_portal.storage.*;
+import org.lwjgl.glfw.GLFW;
 
 import java.net.ServerSocket;
 import java.nio.file.*;
@@ -128,7 +130,7 @@ public final class MultiplayerSmokeTest {
 			ClientProfiles.store().create(host);
 			mc.setScreen(new CharacterSelectionScreen(title));
 			selectCharacter(mc.screen, host.name());
-			press(mc.screen, "character_portal.play");
+			pressPlay(mc.screen);
 			require(
 					mc.screen instanceof PlayDestinationScreen,
 					"Character selected before destination");
@@ -706,8 +708,8 @@ public final class MultiplayerSmokeTest {
 		CharacterPortal.LOGGER.info("MULTIPLAYER SMOKE PASS stage {}", current);
 	}
 
-	private static String key(Button button) {
-		return button.getMessage().getContents() instanceof TranslatableContents c
+	private static String key(AbstractWidget widget) {
+		return widget.getMessage().getContents() instanceof TranslatableContents c
 				? c.getKey()
 				: "";
 	}
@@ -749,6 +751,20 @@ public final class MultiplayerSmokeTest {
 								.findFirst()
 								.orElseThrow())
 				.onPress();
+	}
+
+	private static void pressPlay(Screen screen) {
+		var carousel = screen.children().stream()
+				.filter(child -> child.getClass().getSimpleName().equals("ActionCarousel"))
+				.map(AbstractWidget.class::cast)
+				.findFirst()
+				.orElseThrow(() -> new AssertionError("Character action wheel is available"));
+		screen.setFocused(carousel);
+		for (int i = 0; i < 6 && !key(carousel).equals("character_portal.play"); i++) {
+			carousel.keyPressed(GLFW.GLFW_KEY_RIGHT, 0, 0);
+		}
+		require(key(carousel).equals("character_portal.play"), "Play is available on the action wheel");
+		carousel.keyPressed(GLFW.GLFW_KEY_ENTER, 0, 0);
 	}
 
 	private static void require(boolean condition, String message) {

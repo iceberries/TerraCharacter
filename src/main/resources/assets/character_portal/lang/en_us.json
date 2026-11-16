@@ -21,6 +21,7 @@
   "character_portal.page": "Page %s / %s",
   "character_portal.trash.empty": "No archived characters",
   "character_portal.menu": "Characters & Worlds",
+  "character_portal.settings.title": "Character Portal Settings",
   "character_portal.characters": "Select Character",
   "character_portal.worlds": "Select World",
   "character_portal.create": "Create Character",

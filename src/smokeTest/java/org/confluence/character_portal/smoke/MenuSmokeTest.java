@@ -241,7 +241,7 @@ public final class MenuSmokeTest {
 				bounds();
 				checkPortraits();
 				shot("cards-narrow.png");
-				press("trash");
+				openTrash();
 				stage = 7;
 				delay = 0;
 			} else if (stage == 7 && ++delay > 15) {
@@ -387,12 +387,7 @@ public final class MenuSmokeTest {
 	private static void verifyCarousel() throws Exception {
 		var mc = Minecraft.getInstance();
 		var screen = mc.screen;
-		var carousel =
-				screen.children().stream()
-						.filter(c -> c.getClass().getSimpleName().equals("ActionCarousel"))
-						.map(AbstractWidget.class::cast)
-						.findFirst()
-						.orElseThrow();
+		var carousel = carousel(screen);
 		var labels = new HashSet<String>();
 		int x = carousel.getX() + carousel.getWidth() / 2, y = carousel.getY() + 15;
 		for (int i = 0; i < 5; i++) {
@@ -789,6 +784,31 @@ public final class MenuSmokeTest {
 								|| b.getY() + b.getHeight() <= a.getY(),
 						"Overlapping widgets: " + a.getMessage() + " / " + b.getMessage());
 			}
+	}
+
+	private static AbstractWidget carousel(Screen screen) {
+		return screen.children().stream()
+				.filter(child -> child.getClass().getSimpleName().equals("ActionCarousel"))
+				.map(AbstractWidget.class::cast)
+				.findFirst()
+				.orElseThrow();
+	}
+
+	private static void openTrash() {
+		var mc = Minecraft.getInstance();
+		var screen = mc.screen;
+		var carousel = carousel(screen);
+		var title = ClientProfiles.text("trash");
+		screen.setFocused(carousel);
+		for (int i = 0; i < 6 && !carousel.getMessage().equals(title); i++) {
+			carousel.keyPressed(GLFW.GLFW_KEY_RIGHT, 0, 0);
+		}
+		require(carousel.getMessage().equals(title), "Trash is available on the action wheel");
+		carousel.keyPressed(GLFW.GLFW_KEY_ENTER, 0, 0);
+		require(
+				mc.screen != screen && mc.screen instanceof CharacterSelectionScreen
+						&& mc.screen.getTitle().equals(title),
+				"Trash action opens the archive");
 	}
 
 	private static void press(String key) {

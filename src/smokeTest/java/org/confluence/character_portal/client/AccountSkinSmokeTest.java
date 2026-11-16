@@ -73,21 +73,21 @@ public final class AccountSkinSmokeTest {
 						appearance.hairStyle().equals(AccountSkins.STYLE)
 								&& !appearance.baseSkin().isEmpty(),
 						"Account skin becomes the default base");
+				var expectedDifficulty = ModList.get().isLoaded("confluence")
+						? CharacterDifficulty.SOFTCORE
+						: CharacterDifficulty.SURVIVAL;
 				require(
-						editor.children().stream().anyMatch(DiscreteSlider.class::isInstance)
-								== ModList.get().isLoaded("confluence"),
-						"Character difficulty selector requires Confluence");
+						editor.children().stream().anyMatch(widget ->
+								widget instanceof DiscreteSlider slider
+										&& slider.active
+										&& slider.getMessage().equals(
+												ClientProfiles.difficulty(expectedDifficulty))),
+						"Character difficulty selector uses the default for the loaded mods");
 				require(
 						editor.children().stream()
-								.filter(
-										w ->
-												w instanceof Button b
-														&& b.getMessage()
-																.getString()
-																.equals(
-																		ClientProfiles.text("save")
-																				.getString()))
-								.allMatch(w -> ((Button) w).active),
+								.anyMatch(widget -> widget instanceof Button button
+										&& button.active
+										&& button.getMessage().equals(ClientProfiles.text("save"))),
 						"Save becomes available after lookup");
 				for (boolean slim : List.of(false, true)) {
 					var value =
