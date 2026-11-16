@@ -34,4 +34,4 @@ git submodule add -b main git@github.com:iceberries/CharacterPortal.git Characte
 
 主仓库记录的是子模块的提交 SHA。更新子模块源码后，主仓库会显示子模块指针变化；如需共享该变化，需要另行提交并推送主仓库。本次配置只在本地登记，不提交或推送汇流来世主仓库。
 
-第三方界面素材来源见 [UI_STYLE.md](UI_STYLE.md)，保留皮肤的来源元数据。源码许可见仓库根目录 `LICENSE`。
+Character Portal 自有内容采用 [MIT 许可证](../LICENSE)。内置第三方素材沿用其原有条款，来源见[第三方素材声明](../THIRD_PARTY_NOTICES.md)。

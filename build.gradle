@@ -12,6 +12,14 @@ base.archivesName = 'CharacterPortal-neoforge'
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 java.withSourcesJar()
 
+['jar', 'sourcesJar'].each { jarTask ->
+	tasks.named(jarTask, Jar) {
+		from(['LICENSE', 'THIRD_PARTY_NOTICES.md']) {
+			into 'META-INF'
+		}
+	}
+}
+
 // Compile the built-in compatibility against Confluence, without making it a runtime dependency.
 def withConfluence = providers.gradleProperty('withConfluence').orNull == 'true'
 
